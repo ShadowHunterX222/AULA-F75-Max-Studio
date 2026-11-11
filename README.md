@@ -141,7 +141,3 @@ The palette chooser provides Aurora, Arctic Ice, Sakura, Sunset, Deep Ocean, Emb
 - Changed the frame scheduler to completion-based pacing with a 2 ms minimum inter-frame idle, preventing catch-up bursts if a USB transfer runs long.
 - Kept the captured 58.7 ms target cadence; the actual physical rate depends on HID transfer timing and firmware response. No unverified high-speed protocol timings were introduced.
 - Preserved all 120 effects, 19 palettes, global reactive capture, existing profiles, and LED mapping 95–98.
-
-## Publish to GitHub
-
-On Windows, install [Git](https://git-scm.com/download/win) and [GitHub CLI](https://cli.github.com/), then run `PUBLISH-TO-GITHUB.bat`. The script signs in through GitHub CLI if needed, creates a local `main` commit, asks for the repository name and public/private visibility, creates the GitHub repository when it does not already exist, and pushes the branch. It does not embed or save a personal access token in the project.
