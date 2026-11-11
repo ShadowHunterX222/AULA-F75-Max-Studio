@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101114">
+  <title>AULA F75 Max Studio — Desktop Driver</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">A</div><div><div class="brand-name">AULA <span>STUDIO</span></div><div class="brand-sub">F75 MAX CONTROL</div></div></div>
+      <div class="device-mini"><div class="device-icon">⌨</div><div><strong>F75 Max</strong><small>Custom control panel</small></div><span class="live-dot" id="sidebarDot"></span></div>
+      <div class="nav-label">WORKSPACE</div>
+      <nav class="side-nav" aria-label="Main navigation">
+        <button class="nav-item active" data-tab="lighting"><span class="nav-icon">◈</span>Lighting <span class="nav-arrow">›</span></button>
+        <button class="nav-item" data-tab="keymap"><span class="nav-icon">⌘</span>Key mapping <span class="nav-arrow">›</span></button>
+        <button class="nav-item" data-tab="macros"><span class="nav-icon">▤</span>Macros <span class="nav-arrow">›</span></button>
+        <button class="nav-item" data-tab="settings"><span class="nav-icon">⚙</span>Settings <span class="nav-arrow">›</span></button>
+      </nav>
+      <div class="nav-label second-label">LIBRARY</div>
+      <nav class="side-nav"><button class="nav-item" data-tab="profiles"><span class="nav-icon">▣</span>Profiles <span class="nav-arrow">›</span></button></nav>
+      <div class="sidebar-bottom"><div class="usb-note"><span class="usb-glyph">↯</span><div><strong>USB-C mode required</strong><small>Bluetooth configuration isn't exposed by the stock firmware.</small></div></div><div class="sidebar-version">AULA Studio <span>0.8.1 · Windows Desktop Driver</span></div></div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar"><div class="breadcrumbs"><span>Workspace</span><b>/</b><strong id="crumb">Lighting</strong></div><div class="top-actions"><span class="connection-status" id="connectionStatus"><i></i><span>Not connected</span></span><button class="btn btn-primary btn-connect" id="connectBtn"><span>↯</span> Connect keyboard</button></div></header>
+
+      <section class="page active" id="page-lighting">
+        <div class="page-heading"><div><div class="eyebrow">LIGHTING STUDIO <span class="tiny-pill">LIVE PREVIEW</span></div><h1>Make it yours.</h1><p>Shape the look of your F75 Max, one key at a time.</p></div><div class="heading-actions"><button class="btn btn-quiet" id="resetLighting">Reset preview</button><button class="btn btn-primary" id="applyLighting">Apply to keyboard <span>↗</span></button></div></div>
+        <div class="lighting-layout">
+          <div class="panel mode-panel">
+            <div class="panel-head"><div><h2>Native lighting effects</h2><p>Choose one of the keyboard firmware modes</p></div><span class="count-tag">20 NATIVE MODES</span></div>
+            <div class="mode-grid" id="modeGrid"></div>
+            <div class="panel-foot"><span class="legend-dot"></span> Effects are rendered by the keyboard firmware</div>
+          </div>
+          <div class="panel controls-panel">
+            <div class="panel-head"><div><h2>Native colour &amp; motion</h2><p>These speed and brightness settings apply to the 20 built-in AULA modes</p></div><span class="edit-chip">● CUSTOMIZE</span></div>
+            <div class="field-block"><div class="field-title"><label for="effectColor">Custom base colour</label><span id="colorHex">#9B82FF</span></div><div class="color-row"><input id="effectColor" type="color" value="#9b82ff"><div class="swatches" id="swatches"><button data-color="#9B82FF" style="--sw:#9B82FF" aria-label="Purple"></button><button data-color="#55D6BE" style="--sw:#55D6BE" aria-label="Mint"></button><button data-color="#FF8C69" style="--sw:#FF8C69" aria-label="Coral"></button><button data-color="#69A7FF" style="--sw:#69A7FF" aria-label="Blue"></button><button data-color="#F5CB5C" style="--sw:#F5CB5C" aria-label="Gold"></button><button data-color="#FFFFFF" style="--sw:#FFFFFF" aria-label="White"></button></div></div></div>
+            <div class="field-block"><div class="field-title"><label for="brightness">Native brightness</label><output id="brightnessVal">5 / 5</output></div><input class="range" id="brightness" type="range" min="0" max="5" value="5"></div>
+            <div class="field-block"><div class="field-title"><label for="speed">Native animation speed</label><output id="speedVal">3 / 5</output></div><input class="range" id="speed" type="range" min="0" max="5" value="3"></div>
+            <div class="toggle-line"><div><strong>Native firmware rainbow</strong><small>For the 20 built-in AULA modes</small></div><label class="switch"><input type="checkbox" id="rainbow"><span></span></label></div>
+            <div class="field-block direction-block"><div class="field-title"><label>Direction</label><span class="subtle">For supported effects</span></div><div class="segmented" id="directionSeg"><button data-dir="0" class="selected">←</button><button data-dir="1">→</button><button data-dir="2">↑</button><button data-dir="3">↓</button></div></div>
+            <div class="panel-divider"></div>
+            <button class="btn btn-outline btn-wide" id="openCustom">Open per-key colour editor <span>↗</span></button>
+            <p class="micro-copy">Per-key RGB uses a separate experimental command path. Apply only after reading the safety note.</p>
+          </div>
+        </div>
+        <div class="panel qmk-panel">
+          <div class="panel-head"><div><h2>120 Studio effects · Real-time Lighting</h2><p>Choose any effect, preview it, or stream animated per-key RGB frames to the keyboard. The desktop driver keeps running in the system tray.</p></div><span class="count-tag" id="effectCount">120 EFFECTS</span></div>
+          <div class="effect-toolbar">
+            <input id="effectSearch" type="search" placeholder="Search effects…" aria-label="Search effects">
+            <select id="effectCategory" aria-label="Filter effect category"><option value="all">All categories</option><option value="ambient">Ambient</option><option value="motion">Motion</option><option value="organic">Organic</option><option value="reactive">Reactive / typing</option><option value="nature">Nature</option><option value="cinematic">Cinematic</option><option value="geometric">Geometric</option><option value="rhythm">Rhythm</option><option value="party">Party</option></select>
+          </div>
+          <div class="palette-panel">
+            <div class="palette-heading"><div><strong>Curated colour palettes</strong><small>Multi-colour themes for Studio effects. The custom colour picker above remains available.</small></div><span id="paletteActiveName">Aurora</span></div>
+            <div class="palette-grid" id="paletteGrid" aria-label="Colour palette choices"></div>
+          </div>
+          <div class="effect-tuning-panel">
+            <div class="effect-tuning-heading"><div><strong>Custom effect tuning</strong><small>Independent settings saved separately for each Studio effect; native AULA settings remain unchanged.</small></div><span class="tuning-pill">LIVE ADJUSTMENT</span></div>
+            <div class="effect-tuning-grid">
+              <div class="effect-tuning-control">
+                <div class="field-title"><label for="effectSpeed">Effect speed</label><output id="effectSpeedVal">100%</output></div>
+                <input class="range" id="effectSpeed" type="range" min="25" max="200" step="5" value="100">
+                <small>25% slower · 100% normal · 200% faster</small>
+              </div>
+              <div class="effect-tuning-control">
+                <div class="field-title"><label for="effectBrightness">Effect brightness</label><output id="effectBrightnessVal">115%</output></div>
+                <input class="range" id="effectBrightness" type="range" min="25" max="200" step="5" value="115">
+                <small>Extra brightness compensation for darker effects</small>
+              </div>
+              <div class="effect-tuning-auto">
+                <span id="effectBrightnessMode">AUTO</span>
+                <button class="btn btn-outline" id="effectBrightnessAuto" type="button">Auto brightness</button>
+              </div>
+            </div>
+          </div>
+          <div class="qmk-effect-grid" id="qmkEffectGrid"></div>
+          <div class="effect-actions">
+            <button class="btn btn-outline" id="toggleEffectPreview">Preview in Studio</button>
+            <button class="btn btn-primary" id="toggleEffectHardware">Start real-time lighting</button>
+            <button class="btn btn-quiet" id="useNativeEffect">Use closest AULA effect</button>
+            <span id="effectPreviewStatus">Software preview stopped</span>
+          </div>
+          <p class="qmk-limit-note"><strong>Desktop driver:</strong> Closing this window hides Studio in the Windows system tray; the lighting loop continues while the tray app is running. Use the tray menu to stop lighting or quit and restore native lighting. <strong>How this works:</strong> All Studio effects are rendered by the PC and sent through AULA’s built-in Real-time Lighting stream: a 04 20 frame header, eight 64-byte visual-order RGB blocks, then a 04 02 frame commit. A one-time host-control handshake (04 18 → 04 28 → host clock block → 04 02) enters the mode; each frame then uses 04 20 → eight raw 64-byte RGB blocks → 04 02. This is separate from the persistent 04 23 colour table. The stream uses the 82 light_index values from your F75 Max layout, with Alt_R, Fn, Ctrl_R and LED98 kept separate. The frame format was captured on a related AULA 0C45:800A device, so confirm the exact F75 Max key order with a short hardware test.</p>
+        </div>
+        <div class="panel preview-panel"><div class="panel-head"><div><h2>Keyboard preview</h2><p>Click a key to inspect its physical index and LED index</p></div><span class="preview-tag">F75 MAX · 75% LAYOUT</span></div><div class="keyboard-stage"><div class="knob">◉</div><div class="keyboard" id="lightingKeyboard"></div></div><div class="keyboard-legend"><span><i class="legend-key"></i> Selected key</span><span><i class="legend-rgb"></i> Custom RGB colour</span><span class="mapping-note">Bottom row slots 95–98 from your XML</span></div></div>
+      </section>
+
+      <section class="page" id="page-keymap">
+        <div class="page-heading"><div><div class="eyebrow">KEYMAP EDITOR <span class="tiny-pill warning-pill">EXPERIMENTAL WRITE</span></div><h1>Every key, your rules.</h1><p>Build independent base and Fn layers. Changes remain in this profile until applied.</p></div><div class="heading-actions"><button class="btn btn-quiet" id="resetKeymap">Reset layer</button><button class="btn btn-primary" id="applyKeymap">Apply mapping <span>↗</span></button></div></div>
+        <div class="layer-bar"><div class="segmented layer-segment"><button class="selected" data-layer="base">Base layer</button><button data-layer="fn">Fn layer</button></div><div class="layer-help">Select a key, then choose what it should do.</div><span class="count-tag">CUSTOM LAYOUT</span></div>
+        <div class="panel keymap-panel"><div class="panel-head"><div><h2>F75 Max layout</h2><p>Key index controls remapping. LED index is independent.</p></div><div class="mapping-legend"><span>Selected</span><i></i><span>Modified</span><i class="modified-dot"></i></div></div><div class="keyboard-stage keymap-stage"><div class="knob">◉</div><div class="keyboard" id="keymapKeyboard"></div></div></div>
+        <div class="editor-grid"><div class="panel action-panel"><div class="panel-head"><div><h2>Key action</h2><p id="selectedKeyCaption">Select a key to edit</p></div><span class="count-tag" id="selectedKeyIndex">NO KEY</span></div><div class="empty-selection" id="emptySelection">Choose any key from the layout above to configure its action.</div><div id="actionEditor" class="hidden">
+          <div class="field-block"><label for="actionType">Action type</label><select id="actionType"><option value="default">Default</option><option value="key">Keyboard key</option><option value="consumer">Media / consumer</option><option value="mouse">Mouse action</option><option value="macro">Macro</option><option value="disable">Disable key</option><option value="special">Special function</option></select></div>
+          <div id="keyActionFields"><div class="field-block"><label for="targetKey">Send key</label><select id="targetKey"></select></div><div class="modifier-grid"><label><input type="checkbox" id="modCtrl"> Ctrl</label><label><input type="checkbox" id="modShift"> Shift</label><label><input type="checkbox" id="modAlt"> Alt</label><label><input type="checkbox" id="modWin"> Win</label></div></div>
+          <div id="consumerFields" class="hidden field-block"><label for="consumerCode">Media action</label><select id="consumerCode"><option value="181">Play / Pause</option><option value="182">Stop</option><option value="183">Next track</option><option value="184">Previous track</option><option value="226">Mute</option><option value="233">Volume up</option><option value="234">Volume down</option><option value="205">Email</option><option value="130">Calculator</option></select></div>
+          <div id="mouseFields" class="hidden field-block"><label for="mouseCode">Mouse action</label><select id="mouseCode"><option value="1,0,0">Left click</option><option value="2,0,0">Right click</option><option value="4,0,0">Middle click</option><option value="0,-1,0">Scroll up</option><option value="0,1,0">Scroll down</option></select></div>
+          <div id="macroFields" class="hidden field-block"><label for="macroSlot">Macro slot</label><select id="macroSlot"><option value="0">Macro 1</option></select><label for="macroMode" class="spaced-label">Playback</label><select id="macroMode"><option value="0">Play once</option><option value="1">Repeat N times</option><option value="2">Toggle</option><option value="3">While held</option><option value="4">On click</option></select><div class="field-block compact-field"><label for="macroRepeat">Repeat count</label><input type="number" id="macroRepeat" min="1" max="255" value="1"></div></div>
+          <div id="specialFields" class="hidden field-block"><label for="specialCode">Special code (hex)</label><input id="specialCode" value="0001" maxlength="4" placeholder="0001"></div>
+          <button class="btn btn-outline btn-wide" id="saveAction">Save action to profile</button>
+          <p class="micro-copy warning-text">The firmware's non-default keymap table is not independently confirmed on this exact keyboard. The apply button requires a separate risk acknowledgement.</p>
+        </div></div><div class="panel layer-info"><h3>Layer behaviour</h3><p>The base layer is active during normal typing. The Fn layer is used while Fn is held, unless the keyboard's Fn-toggle setting is enabled.</p><div class="info-row"><span>Physical key index</span><strong>Remap slot</strong></div><div class="info-row"><span>LED index</span><strong>Lighting slot</strong></div><div class="info-row"><span>Profile sync</span><strong>Local only</strong></div></div></div>
+      </section>
+
+      <section class="page" id="page-macros">
+        <div class="page-heading"><div><div class="eyebrow">MACRO WORKSHOP <span class="tiny-pill warning-pill">EXPERIMENTAL WRITE</span></div><h1>Automate the sequence.</h1><p>Create text macros and edit their timing. Stored locally until you export or apply.</p></div><div class="heading-actions"><button class="btn btn-primary" id="addMacro">＋ New macro</button><button class="btn btn-quiet" id="applyMacros">Upload to keyboard</button></div></div>
+        <div class="macro-layout"><div class="panel macro-list-panel"><div class="panel-head"><div><h2>Your macros</h2><p>Up to 100 macro slots in the protocol model</p></div><span class="count-tag" id="macroCount">0 / 100</span></div><div id="macroList" class="macro-list"></div></div><div class="panel macro-editor"><div class="panel-head"><div><h2>Macro editor</h2><p>Type the sequence; the builder creates press/release events.</p></div></div><div id="macroEmpty" class="empty-selection">Create a macro or choose one from the list.</div><div id="macroFieldsEditor" class="hidden"><div class="field-block"><label for="macroName">Macro name</label><input id="macroName" maxlength="32" value="New macro"></div><div class="field-block"><div class="field-title"><label for="macroText">Text sequence</label><span class="subtle">US keyboard layout</span></div><textarea id="macroText" rows="6" placeholder="Type the text this macro should enter..."></textarea></div><div class="field-row"><div class="field-block"><label for="eventDelay">Key delay (ms)</label><input id="eventDelay" type="number" min="10" max="2000" value="30"></div><div class="field-block"><label for="macroPreview">Generated events</label><input id="macroPreview" disabled value="0 events"></div></div><div class="macro-budget"><div><span>Memory estimate</span><strong id="budgetText">0 / 2,700 bytes</strong></div><div class="budget-track"><i id="budgetBar"></i></div></div><button class="btn btn-outline btn-wide" id="saveMacro">Save macro</button></div></div></div>
+        <div class="notice-card"><div class="notice-icon">!</div><div><strong>Hardware write is experimental</strong><p>Public protocol references disagree about macro framing. This editor and profile export work offline; uploading requires explicit acknowledgement and may not be reversible without restoring the vendor configuration.</p></div></div>
+      </section>
+
+      <section class="page" id="page-settings">
+        <div class="page-heading"><div><div class="eyebrow">DEVICE PREFERENCES</div><h1>Set the behaviour.</h1><p>Keyboard restrictions, Fn mode and response settings.</p></div><div class="heading-actions"><button class="btn btn-primary" id="applySettings">Apply settings <span>↗</span></button></div></div>
+        <div class="settings-grid"><div class="panel settings-panel"><div class="panel-head"><div><h2>Key restrictions</h2><p>Prevent accidental system shortcuts</p></div></div><div class="setting-row"><div><strong>Disable Windows key</strong><small>Block the Windows key from opening Start</small></div><label class="switch"><input type="checkbox" id="disableWin"><span></span></label></div><div class="setting-row"><div><strong>Disable Alt + F4</strong><small>Prevent closing the active window</small></div><label class="switch"><input type="checkbox" id="disableAltF4"><span></span></label></div><div class="setting-row"><div><strong>Disable Alt + Tab</strong><small>Prevent switching between windows</small></div><label class="switch"><input type="checkbox" id="disableAltTab"><span></span></label></div></div><div class="panel settings-panel"><div class="panel-head"><div><h2>Fn behaviour</h2><p>Choose how the function layer activates</p></div></div><div class="setting-row"><div><strong>Fn toggle</strong><small>Tap Fn to toggle the Fn layer on/off</small></div><label class="switch"><input type="checkbox" id="fnToggle"><span></span></label></div><div class="field-block settings-select"><label for="sleepOption">Auto sleep</label><select id="sleepOption"><option value="0">Never</option><option value="1">After 1 minute</option><option value="2">After 5 minutes</option><option value="3">After 30 minutes</option></select></div><div class="field-block settings-select"><label for="responseOption">Key response</label><select id="responseOption"><option value="0">Level 1 · fastest</option><option value="1">Level 2</option><option value="2">Level 3 · balanced</option><option value="3">Level 4</option><option value="4">Level 5 · quietest</option></select></div><p class="micro-copy warning-text">Settings packet is reverse-engineered; verify each change on your keyboard.</p></div></div>
+        <div class="panel diagnostics"><div class="panel-head"><div><h2>Connection diagnostics</h2><p>USB-C wired command channel</p></div><span class="count-tag">0C45 : 800A</span></div><div class="diagnostic-grid"><div><small>Connection</small><strong id="diagConnection">Disconnected</strong></div><div><small>Interface usage</small><strong>0xFF13 · 0x0001</strong></div><div><small>Transport</small><strong>64-byte feature reports</strong></div><div><small>Wireless config</small><strong>Not supported in this build</strong></div></div><div class="log-area"><div class="log-head"><span>ACTIVITY LOG</span><button class="text-button" id="clearLog">Clear</button></div><div id="activityLog" class="log-lines"><div class="log-empty">Waiting for device connection…</div></div></div></div>
+      </section>
+
+      <section class="page" id="page-profiles">
+        <div class="page-heading"><div><div class="eyebrow">PROFILE LIBRARY</div><h1>Your setups, saved.</h1><p>Save complete configurations locally and move them between computers.</p></div><div class="heading-actions"><button class="btn btn-primary" id="saveProfile">＋ Save current profile</button></div></div>
+        <div class="profile-actions"><label class="btn btn-outline file-button">Import profile<input type="file" id="importProfile" accept="application/json,.json" hidden></label><button class="btn btn-outline" id="exportCurrent">Export current profile</button></div>
+        <div class="profile-grid" id="profileGrid"></div>
+        <div class="notice-card subtle-notice"><div class="notice-icon">i</div><div><strong>Profiles are stored on this computer</strong><p>The keyboard does not expose a full configuration readback. A profile is your saved source of truth; import/export is recommended before using another machine.</p></div></div>
+      </section>
+      <footer class="app-footer"><span>Independent community project · Not affiliated with AULA</span><span>Windows desktop driver · USB-C wired mode</span></footer>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <dialog id="riskDialog" class="risk-dialog"><div class="dialog-mark">!</div><h2>Experimental hardware control</h2><p id="riskText">This feature uses an independently reverse-engineered command which has not been verified on your exact hardware here.</p><div class="risk-details"><strong>Before continuing</strong><ul><li>Connect by USB-C and switch to wired mode.</li><li>Keep the keyboard connected until the command completes.</li><li>Save/export your profile first.</li><li>Stop if the device disconnects or ACK validation fails.</li></ul></div><label class="risk-check"><input type="checkbox" id="riskConfirm"> I understand this hardware command is experimental and should be tested with a short effect first.</label><div class="dialog-actions"><button class="btn btn-quiet" id="riskCancel">Cancel</button><button class="btn btn-danger" id="riskContinue" disabled>Send command</button></div></dialog>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

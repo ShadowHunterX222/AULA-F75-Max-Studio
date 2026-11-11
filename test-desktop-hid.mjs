@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const main = fs.readFileSync(new URL('./desktop/main.cjs', import.meta.url), 'utf8');
+const protocol = fs.readFileSync(new URL('./protocol.js', import.meta.url), 'utf8');
+assert.match(main, /appendSwitch\('disable-hid-blocklist'\)/, 'Electron must expose vendor-defined HID collections on composite keyboards.');
+assert.match(main, /function isAulaVidPid\(device\)/, 'Desktop permission layer must identify the exact AULA USB identity.');
+assert.match(main, /details\?\.deviceType === 'hid' && isStudioOrigin\(details\.origin\) && isAulaVidPid\(details\.device\)/, 'HID permission must be constrained to the Studio origin and AULA VID/PID.');
+assert.match(main, /ses\.on\('select-hid-device'/, 'Electron must handle its WebHID chooser callback.');
+assert.match(protocol, /navigator\.hid\.getDevices\(\)/, 'Reconnect should enumerate previously authorized devices before requesting access.');
+assert.match(protocol, /USAGE\.commandPage && Number\(c\.usage\) === USAGE\.commandUsage/, 'Renderer must validate the exact vendor configuration collection.');
+assert.match(protocol, /featureIds\.includes\(0\)/, 'Renderer must validate feature report ID zero.');
+console.log('PASS: Electron HID blocklist workaround, scoped permission policy, device chooser, authorized-device reconnect, strict FF13 collection validation, and feature report validation.');

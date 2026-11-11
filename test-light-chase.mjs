@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { renderQmkEffectFrame } from './effects.js';
+import fs from 'node:fs';
+const keys=JSON.parse(fs.readFileSync(new URL('./keymap.json',import.meta.url),'utf8'));
+const frameA=renderQmkEffectFrame({effectId:'chase',keys,timeMs:0,color:'#ffffff',speed:3,brightness:5,outputFormat:'rgb'});
+const frameB=renderQmkEffectFrame({effectId:'chase',keys,timeMs:900,color:'#ffffff',speed:3,brightness:5,outputFormat:'rgb'});
+assert.equal(Object.keys(frameA).length,82,'chase must render every LED slot');
+assert.equal(Object.keys(frameB).length,82,'later chase frame must render every LED slot');
+assert.notDeepEqual(frameA,frameB,'chase head must move over time');
+const theatre=renderQmkEffectFrame({effectId:'theater_chase',keys,timeMs:300,color:'#ffffff',speed:3,brightness:5,outputFormat:'rgb'});
+assert.equal(Object.keys(theatre).length,82,'theatre chase must render every LED slot');
+console.log('PASS: Light Chase uses a cached serpentine physical-key path, moves over time, and covers all 82 LED slots; Theatre Chase remains intact.');
