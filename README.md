@@ -141,3 +141,9 @@ The palette chooser provides Aurora, Arctic Ice, Sakura, Sunset, Deep Ocean, Emb
 - Changed the frame scheduler to completion-based pacing with a 2 ms minimum inter-frame idle, preventing catch-up bursts if a USB transfer runs long.
 - Kept the captured 58.7 ms target cadence; the actual physical rate depends on HID transfer timing and firmware response. No unverified high-speed protocol timings were introduced.
 - Preserved all 120 effects, 19 palettes, global reactive capture, existing profiles, and LED mapping 95–98.
+
+## License and copyright
+
+Copyright (c) 2026 ShadowHunterX222. **All Rights Reserved.**
+
+This project is proprietary. No permission or license is granted to use, reproduce, modify, distribute, sublicense, sell, or create derivative works from this software without the copyright holder's prior express written permission. Viewing or downloading this public repository does not grant those rights. See [LICENSE](LICENSE).
