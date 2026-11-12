@@ -6,8 +6,10 @@ const fs = require('node:fs');
 const http = require('node:http');
 
 const APP_ID = 'com.aulastudio.f75max';
-const VID = 0x0c45;
-const PID = 0x800a;
+const WIRED_VID = 0x0c45;
+const WIRED_PID = 0x800a;
+const WIRELESS_VID = 0x05ac;
+const WIRELESS_PID = 0x024f;
 // A fixed origin keeps localStorage and granted WebHID permission stable across
 // restarts. The server binds to loopback only and serves only packaged files.
 const STUDIO_PORT = 48675;
@@ -31,10 +33,9 @@ let reactiveHookKeyNameByCode = null;
 app.setAppUserModelId(APP_ID);
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
-// This keyboard presents a composite HID device. Chromium's default HID
-// blocklist can hide the vendor-defined configuration collection on some
-// Windows builds. Access remains restricted below to AULA VID/PID 0C45:800A
-// and this app's loopback origin.
+// This keyboard/receiver presents vendor-defined HID collections. Chromium's
+// default HID blocklist can hide them on some Windows builds. Access remains
+// restricted below to the two verified AULA identities and this app's origin.
 app.commandLine.appendSwitch('disable-hid-blocklist');
 
 function mainLog(message) {
@@ -112,7 +113,9 @@ function makeTrayIcon() {
 }
 
 function isAulaVidPid(device) {
-  return Boolean(device && Number(device.vendorId) === VID && Number(device.productId) === PID);
+  if (!device) return false;
+  const vid = Number(device.vendorId), pid = Number(device.productId);
+  return (vid === WIRED_VID && pid === WIRED_PID) || (vid === WIRELESS_VID && pid === WIRELESS_PID);
 }
 
 function collectionsOf(device) {
@@ -129,7 +132,14 @@ function collectionsOf(device) {
 
 function hasAulaCommandCollection(device) {
   return collectionsOf(device).some(collection =>
-    Number(collection.usagePage) === 0xff13 && Number(collection.usage) === 0x0001
+    Number(device?.vendorId) === WIRED_VID && Number(collection.usagePage) === 0xff13 && Number(collection.usage) === 0x0001
+  );
+}
+
+function hasAulaWirelessOutput(device) {
+  return collectionsOf(device).some(collection =>
+    Number(device?.vendorId) === WIRELESS_VID && Number(collection.usagePage) === 0xff60 &&
+    Array.isArray(collection.outputReports) && collection.outputReports.some(report => Number(report.reportId) === 0)
   );
 }
 
@@ -156,8 +166,8 @@ function configureWebHidPermissions(ses) {
   });
 
   // Electron may provide a reduced device descriptor to this callback. Check
-  // the USB identity here; the renderer performs the stricter FF13/0001
-  // collection validation before opening and sending any report.
+  // the USB identity here; the renderer validates FF13/0001 for wired mode or
+  // FF60/output-report-0 for the 2.4 GHz receiver before sending any report.
   ses.setDevicePermissionHandler(details => {
     const allowed = details?.deviceType === 'hid' && isStudioOrigin(details.origin) && isAulaVidPid(details.device);
     if (details?.deviceType === 'hid') mainLog(`${allowed ? 'Allowed' : 'Denied'} HID device permission: ${describeHidDevice(details.device)} origin=${details.origin || 'unknown'}`);
@@ -168,12 +178,12 @@ function configureWebHidPermissions(ses) {
     event.preventDefault();
     const offered = Array.isArray(details.deviceList) ? details.deviceList : [];
     const candidates = offered.filter(isAulaVidPid);
-    // Some Electron/Chromium builds pass device descriptors here without their
-    // collection tree. Prefer FF13:0001 when present; otherwise pass the AULA
-    // VID/PID candidate to the renderer, which performs the strict validation.
-    const selected = candidates.find(hasAulaCommandCollection) || candidates[0];
-    mainLog(`HID chooser requested; ${offered.length} device(s) offered; AULA candidate(s): ${candidates.length}. ${offered.map(describeHidDevice).join(' || ') || 'Device list empty.'}`);
-    if (selected) mainLog(`Selected HID device: ${describeHidDevice(selected)}; exact FF13 match visible to main=${hasAulaCommandCollection(selected)}.`);
+    // Some Chromium builds pass reduced descriptors without collection trees.
+    // Prefer the verified 2.4 GHz receiver when both transports are authorized;
+    // otherwise prefer the wired command collection. The renderer validates.
+    const selected = candidates.find(hasAulaWirelessOutput) || candidates.find(hasAulaCommandCollection) || candidates[0];
+    mainLog(`HID chooser requested; ${offered.length} device(s) offered; supported AULA candidate(s): ${candidates.length}. ${offered.map(describeHidDevice).join(' || ') || 'Device list empty.'}`);
+    if (selected) mainLog(`Selected HID device: ${describeHidDevice(selected)}; wireless FF60=${hasAulaWirelessOutput(selected)}; wired FF13=${hasAulaCommandCollection(selected)}.`);
     callback(selected?.deviceId);
   });
   ses.on('hid-device-added', (_event, details) => mainLog(`HID device added while chooser open: ${describeHidDevice(details?.device)}.`));

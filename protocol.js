@@ -1,10 +1,14 @@
 /*
- * AULA F75 Max wired HID protocol helpers.
- * Uses the vendor-captured Real-time Lighting host-control handshake and 0x20 frame stream.
- * Persistent per-key RGB, remap and macro writes remain separate operations.
+ * AULA F75 Max HID protocol helpers.
+ * Wired USB-C uses 64-byte feature reports (0C45:800A / FF13).
+ * The 2.4 GHz receiver uses 32-byte checksum-protected output reports
+ * (05AC:024F / FF60). These transports are deliberately kept separate.
  */
 export const USB_IDS = { vendorId: 0x0c45, productId: 0x800a };
+export const WIRELESS_USB_IDS = { vendorId: 0x05ac, productId: 0x024f };
 export const USAGE = { commandPage: 0xff13, commandUsage: 0x0001 };
+export const WIRELESS_USAGE = { rawPage: 0xff60 };
+export const WIRELESS_REPORT_SIZE = 32;
 export const REPORT_SIZE = 64;
 const DELAY_MS = 40;
 const REALTIME_ACK_MS = 7;
@@ -77,11 +81,75 @@ export function buildRealtimeHostClockPacket(now = new Date()) {
   return packet;
 }
 
+/** Checksum used by the F75 Max 2.4 GHz receiver (sum of bytes 0..30). */
+export function wirelessChecksum(report) {
+  if (!(report instanceof Uint8Array) || report.length !== WIRELESS_REPORT_SIZE) {
+    throw new Error(`Wireless report must be exactly ${WIRELESS_REPORT_SIZE} bytes.`);
+  }
+  let sum = 0;
+  for (let i = 0; i < WIRELESS_REPORT_SIZE - 1; i++) sum = (sum + report[i]) & 0xff;
+  return sum;
+}
+
+function finalizeWirelessReport(report) {
+  report[WIRELESS_REPORT_SIZE - 1] = wirelessChecksum(report);
+  return report;
+}
+
+/** The receiver expects a commit marker before a native RGB mode update. */
+export function buildWirelessRgbCommitPacket() {
+  const report = new Uint8Array(WIRELESS_REPORT_SIZE);
+  report[0] = 0x0f;
+  return finalizeWirelessReport(report);
+}
+
+/** Build a native AULA RGB-mode output report for the 05AC:024F receiver. */
+export function buildWirelessRgbPacket({ mode, rgb = [255, 255, 255], rainbow = false, brightness = 5, speed = 3, direction = 0 }) {
+  if (!Number.isInteger(mode) || mode < 0 || mode > 19) throw new Error('Wireless RGB mode must be 0–19.');
+  if (!Array.isArray(rgb) || rgb.length !== 3 || rgb.some(v => !Number.isFinite(v) || v < 0 || v > 255)) throw new Error('Wireless RGB colour must contain three values from 0–255.');
+  if (!Number.isFinite(brightness) || !Number.isFinite(speed) || !Number.isInteger(direction) || direction < 0 || direction > 3) throw new Error('Invalid wireless brightness, speed or direction.');
+  const report = new Uint8Array(WIRELESS_REPORT_SIZE);
+  report[0] = 0x05; report[1] = 0x10; report[2] = 0x00; report[3] = mode;
+  if (mode !== 0) {
+    // The wireless driver captures RGB in R,G,B order, unlike some older
+    // 32-byte protocol notes that describe a packed integer in little-endian.
+    report[4] = Math.round(rgb[0]); report[5] = Math.round(rgb[1]); report[6] = Math.round(rgb[2]);
+    report[11] = rainbow ? 1 : 0;
+    report[12] = Math.max(1, Math.min(5, Math.round(brightness)));
+    report[13] = Math.max(1, Math.min(5, Math.round(speed)));
+    report[14] = direction;
+  }
+  report[17] = 0xaa; report[18] = 0x55;
+  return finalizeWirelessReport(report);
+}
+
+/** Wireless performance / sleep / key-restriction settings packet. */
+export function buildWirelessSettingsPacket(settings = {}) {
+  const sleepValue = Number(settings.sleep ?? 0);
+  const responseValue = Number(settings.response ?? 3);
+  if (!Number.isInteger(sleepValue) || sleepValue < 0 || sleepValue > 3) throw new Error('Wireless sleep setting must be 0–3.');
+  if (!Number.isInteger(responseValue) || responseValue < 1 || responseValue > 5) throw new Error('Wireless response level must be 1–5.');
+  const report = new Uint8Array(WIRELESS_REPORT_SIZE);
+  report[0] = 0x07; report[1] = 0x10;
+  report[4] = 1; report[5] = 1; report[6] = 1; report[7] = 1;
+  report[8] = settings.fnToggle ? 1 : 0;
+  report[9] = sleepValue;
+  report[11] = responseValue;
+  report[12] = 0; // Game Mode remains controlled separately by the keyboard.
+  report[13] = settings.disableAltTab ? 1 : 0;
+  report[14] = settings.disableAltF4 ? 1 : 0;
+  report[15] = settings.disableWin ? 1 : 0;
+  report[17] = 0xaa; report[18] = 0x55;
+  return finalizeWirelessReport(report);
+}
+
 
 export class AulaHID {
   constructor(onLog = () => {}) {
     this.device = null;
     this.controlCollection = null;
+    this.wirelessCollection = null;
+    this.transport = null;
     this.realtimeReady = false;
     this.realtimeFramePayload = new Uint8Array(128 * 4);
     // Create the eight HID views once. Each frame reuses both the backing
@@ -90,10 +158,12 @@ export class AulaHID {
     this.onLog = onLog;
   }
   get connected() { return !!this.device?.opened; }
-  get label() { return this.device?.productName || 'AULA F75 Max'; }
+  get label() { return this.transport === 'wireless' ? 'AULA F75 Max · 2.4 GHz receiver' : (this.device?.productName || 'AULA F75 Max · USB-C wired'); }
+  get supportsRealtimeStream() { return this.transport === 'wired'; }
+  get supportsNativeLighting() { return this.transport === 'wired' || this.transport === 'wireless'; }
 
-  async connect() {
-    if (!('hid' in navigator)) throw new Error('This desktop runtime does not expose WebHID. Check that the installed app is the v0.6.3 desktop build, not the legacy browser shortcut.');
+  async connect(preferredMode = 'auto') {
+    if (!('hid' in navigator)) throw new Error('This desktop runtime does not expose WebHID. Use the Windows desktop build on a supported Chromium runtime.');
 
     const flatten = list => {
       const out = [];
@@ -101,64 +171,108 @@ export class AulaHID {
       walk(list);
       return out;
     };
-    const hasCommand = d => flatten(d?.collections).some(c => Number(c.usagePage) === USAGE.commandPage && Number(c.usage) === USAGE.commandUsage);
+    const hasWiredCommand = d => flatten(d?.collections).some(c => Number(c.usagePage) === USAGE.commandPage && Number(c.usage) === USAGE.commandUsage);
+    const getWirelessCollection = d => flatten(d?.collections).find(c =>
+      Number(c.usagePage) === WIRELESS_USAGE.rawPage && (c.outputReports || []).some(r => Number(r.reportId) === 0)
+    );
     const summarizeDevice = d => {
       const collections = flatten(d?.collections).map(c => {
-        const reports = (c.featureReports || []).map(r => `feature:${r.reportId}`).join(', ') || 'no feature reports';
-        return `page=0x${Number(c.usagePage || 0).toString(16).padStart(4,'0')} usage=0x${Number(c.usage || 0).toString(16).padStart(4,'0')} (${reports})`;
+        const features = (c.featureReports || []).map(r => `feature:${r.reportId}`).join(', ') || 'no feature';
+        const outputs = (c.outputReports || []).map(r => `output:${r.reportId}`).join(', ') || 'no output';
+        return `page=0x${Number(c.usagePage || 0).toString(16).padStart(4,'0')} usage=0x${Number(c.usage || 0).toString(16).padStart(4,'0')} (${features}; ${outputs})`;
       }).join(' | ');
       return `${d.productName || 'AULA HID'} ${Number(d.vendorId).toString(16)}:${Number(d.productId).toString(16)}: ${collections || 'collections not exposed'}`;
     };
-    const matching = list => (list || []).filter(d => Number(d.vendorId) === USB_IDS.vendorId && Number(d.productId) === USB_IDS.productId);
+    const matching = list => (list || []).filter(d =>
+      (Number(d.vendorId) === USB_IDS.vendorId && Number(d.productId) === USB_IDS.productId) ||
+      (Number(d.vendorId) === WIRELESS_USB_IDS.vendorId && Number(d.productId) === WIRELESS_USB_IDS.productId)
+    );
 
-    // Electron can persist/generate a device grant via setDevicePermissionHandler.
-    // Prefer an already-authorized HIDDevice so reconnect works after app restarts;
-    // otherwise request access from the explicit Connect button gesture.
+    const requestedMode = ['wired', 'wireless'].includes(preferredMode) ? preferredMode : 'auto';
+    const isWireless = d => Number(d.vendorId) === WIRELESS_USB_IDS.vendorId && Number(d.productId) === WIRELESS_USB_IDS.productId;
+    const isWired = d => Number(d.vendorId) === USB_IDS.vendorId && Number(d.productId) === USB_IDS.productId;
     let picks = [];
     try { picks = matching(await navigator.hid.getDevices()); }
     catch (error) { this.onLog(`Existing HID grants could not be enumerated: ${error?.message || error}. Requesting access normally.`, 'info'); }
+    if (requestedMode === 'wireless') picks = picks.filter(d => isWireless(d) && getWirelessCollection(d));
+    else if (requestedMode === 'wired') picks = picks.filter(d => isWired(d) && hasWiredCommand(d));
+    else picks = picks.filter(d => (isWireless(d) && getWirelessCollection(d)) || (isWired(d) && hasWiredCommand(d)));
+
+    // Request only the selected physical transport. This also lets the user
+    // grant the receiver later even when a wired HID permission already exists.
     if (!picks.length) {
-      try { picks = matching(await navigator.hid.requestDevice({ filters: [USB_IDS] })); }
+      const filters = requestedMode === 'wireless' ? [WIRELESS_USB_IDS] : requestedMode === 'wired' ? [USB_IDS] : [WIRELESS_USB_IDS, USB_IDS];
+      try { picks = matching(await navigator.hid.requestDevice({ filters })); }
       catch (error) {
-        if (error?.name === 'NotFoundError') throw new Error('No AULA F75 Max interface was offered by Windows. Confirm USB-C wired mode, unplug the 2.4 GHz receiver, close the official AULA driver, then retry.');
-        throw new Error(`Windows HID permission request failed (${error?.name || 'Error'}): ${error?.message || error}. Check the Windows desktop app HID permission setup and try again.`);
+        if (error?.name === 'NotFoundError') {
+          if (requestedMode === 'wireless') throw new Error('No 2.4 GHz receiver was offered. Insert the AULA receiver, switch the keyboard to 2.4G mode, and press Fn + ~ for 3 seconds to pair if needed.');
+          if (requestedMode === 'wired') throw new Error('No wired AULA F75 Max interface was offered. Connect the keyboard by USB-C and switch it to wired mode.');
+          throw new Error('No AULA F75 Max interface was offered. Insert the 2.4 GHz receiver or connect USB-C, then select the matching connection mode.');
+        }
+        throw new Error(`Windows HID permission request failed (${error?.name || 'Error'}): ${error?.message || error}. Check the desktop app HID permission setup and retry.`);
       }
     }
-    if (!picks.length) {
-      let all = [];
-      try { all = await navigator.hid.getDevices(); } catch {}
-      throw new Error(`No 0C45:800A device was granted to AULA Studio. WebHID sees ${all.length} previously granted device(s): ${all.map(summarizeDevice).join(' || ') || 'none'}. Reconnect the keyboard in USB-C wired mode and retry.`);
+    if (requestedMode === 'wireless') picks = picks.filter(d => isWireless(d) && getWirelessCollection(d));
+    else if (requestedMode === 'wired') picks = picks.filter(d => isWired(d) && hasWiredCommand(d));
+    else picks = picks.filter(d => (isWireless(d) && getWirelessCollection(d)) || (isWired(d) && hasWiredCommand(d)));
+    if (!picks.length) throw new Error(`No ${requestedMode === 'auto' ? 'supported AULA' : requestedMode === 'wireless' ? '2.4 GHz receiver' : 'wired AULA'} interface was granted. Expected wired 0C45:800A or receiver 05AC:024F.`);
+
+    const wirelessPick = picks.find(d => isWireless(d) && getWirelessCollection(d));
+    const wiredPick = picks.find(d => isWired(d) && hasWiredCommand(d));
+    const device = requestedMode === 'wireless' ? wirelessPick
+      : requestedMode === 'wired' ? wiredPick
+      : wirelessPick || wiredPick;
+    if (!device) {
+      const details = picks.map(summarizeDevice).join(' || ');
+      if (requestedMode === 'wireless') throw new Error(`The selected 05AC:024F device does not expose the 2.4 GHz receiver's FF60 output collection. Bluetooth HID is not a supported configuration transport. Receiver details: ${details || 'none'}`);
+      if (requestedMode === 'wired') throw new Error(`The selected 0C45:800A device does not expose the wired FF13:0001 configuration collection. Device details: ${details || 'none'}`);
+      throw new Error(`No supported AULA configuration endpoint was found. Expected wired FF13:0001 (0C45:800A) or 2.4 GHz FF60 output (05AC:024F). Devices: ${details || 'none'}`);
     }
-    this.onLog(`Windows exposed ${picks.length} AULA 0C45:800A HID interface(s): ${picks.map(summarizeDevice).join(' || ')}`, 'info');
-    // Composite-device ordering is not stable. Prefer the vendor configuration
-    // collection (MI_03 / FF13:0001) rather than a keyboard or consumer-control interface.
-    const device = picks.find(hasCommand) || picks[0];
-    try {
-      await device.open();
-    } catch (error) {
+    const selectedTransport = isWireless(device) ? 'wireless' : 'wired';
+    this.onLog(`Windows exposed ${picks.length} supported AULA HID device(s): ${picks.map(summarizeDevice).join(' || ')}`, 'info');
+
+    try { await device.open(); }
+    catch (error) {
       const name = error?.name || 'HIDError';
-      throw new Error(`Windows found the AULA keyboard, but the browser could not open its HID interface (${name}: ${error?.message || 'open failed'}). Close the AULA configuration program completely, including its tray/background process. Some F75 Max reverse-engineering tools report that DeviceDriver.exe can hold the HID interface open. Then unplug/replug USB-C and retry.`);
+      throw new Error(`Windows found the AULA ${selectedTransport === 'wireless' ? '2.4 GHz receiver' : 'wired keyboard'}, but could not open its HID interface (${name}: ${error?.message || 'open failed'}). Close the official AULA configuration program and retry.`);
     }
 
     const collections = flatten(device.collections);
-    const control = collections.find(c => c.usagePage === USAGE.commandPage && c.usage === USAGE.commandUsage);
-    if (!control) {
-      const details = summarize(device.collections) || 'No collections were exposed by the browser.';
-      await device.close();
-      throw new Error(`Windows granted ${device.productName || 'the AULA device'} (${USB_IDS.vendorId.toString(16)}:${USB_IDS.productId.toString(16)}), but this interface is not the configuration channel MI_03 / usage page 0xFF13, usage 0x0001. Collections seen: ${details}. Desktop diagnostics have been logged. Check the HID blocklist setting in the desktop app and retry with the official AULA background driver closed.`);
+    if (selectedTransport === 'wireless') {
+      const raw = collections.find(c => Number(c.usagePage) === WIRELESS_USAGE.rawPage);
+      const outputIds = (raw?.outputReports || []).map(r => Number(r.reportId));
+      if (!raw || !outputIds.includes(0)) {
+        const details = summarizeDevice(device);
+        await device.close();
+        throw new Error(`The 2.4 GHz receiver (${WIRELESS_USB_IDS.vendorId.toString(16)}:${WIRELESS_USB_IDS.productId.toString(16)}) was found, but its FF60 output collection/report ID 0 is unavailable. Collections seen: ${details}`);
+      }
+      this.wirelessCollection = raw;
+      this.controlCollection = null;
+      this.transport = 'wireless';
+      this.onLog(`Connected to the 2.4 GHz receiver output interface / 0xFF60: ${device.productName || 'AULA F75 Max receiver'} (05ac:024f). Native lighting and receiver settings are available.`, 'ok');
+    } else {
+      const control = collections.find(c => Number(c.usagePage) === USAGE.commandPage && Number(c.usage) === USAGE.commandUsage);
+      if (!control) {
+        const details = summarizeDevice(device);
+        await device.close();
+        throw new Error(`The wired device does not expose the expected MI_03 / 0xFF13:0x0001 configuration collection. Collections seen: ${details}`);
+      }
+      const featureIds = (control.featureReports || []).map(r => Number(r.reportId));
+      if (!featureIds.includes(0)) {
+        await device.close();
+        throw new Error(`The wired MI_03 / 0xFF13 collection is present, but feature report ID 0 is missing. Feature report IDs exposed: ${featureIds.join(', ') || 'none'}.`);
+      }
+      this.controlCollection = control;
+      this.wirelessCollection = null;
+      this.transport = 'wired';
+      this.onLog(`Connected to wired command interface MI_03 / 0xFF13: ${device.productName || 'AULA F75 Max'} (0c45:800a).`, 'ok');
     }
-    const featureIds = (control.featureReports || []).map(r => r.reportId);
-    if (!featureIds.includes(0)) {
-      await device.close();
-      throw new Error(`The MI_03 / 0xFF13 command collection is present, but feature report ID 0 is missing. Feature report IDs exposed: ${featureIds.join(', ') || 'none'}. Please send this diagnostic to update the transport.`);
-    }
+
     this.device = device;
-    this.controlCollection = control;
     device.addEventListener('inputreport', event => {
       this.onLog(`Input report ${event.reportId} received (${event.data.byteLength} bytes).`, 'info');
     });
     device.addEventListener('inputreporterror', () => this.onLog('HID input report error.', 'error'));
-    this.onLog(`Connected to wired command interface MI_03 / 0xFF13: ${device.productName || 'AULA F75 Max'} (${USB_IDS.vendorId.toString(16)}:${USB_IDS.productId.toString(16)}).`, 'ok');
     return device;
   }
 
@@ -167,17 +281,30 @@ export class AulaHID {
     const d = this.device;
     this.device = null;
     this.controlCollection = null;
+    this.wirelessCollection = null;
+    this.transport = null;
     this.realtimeReady = false;
     if (d.opened) await d.close();
     this.onLog('Keyboard disconnected.', 'info');
   }
 
   assertConnected() {
-    if (!this.device?.opened || !this.controlCollection) throw new Error('Connect the keyboard by USB-C in wired mode first.');
+    const hasTransport = this.transport === 'wireless' ? Boolean(this.wirelessCollection) : this.transport === 'wired' && Boolean(this.controlCollection);
+    if (!this.device?.opened || !hasTransport) throw new Error('Connect the AULA F75 Max by USB-C or with its 2.4 GHz receiver first.');
+  }
+  assertWired(operation = 'This operation') {
+    this.assertConnected();
+    if (this.transport !== 'wired') throw new Error(`${operation} is not supported through the 2.4 GHz receiver protocol. Use USB-C wired mode for per-key RGB tables, remapping, macros and PC-rendered real-time animations.`);
+  }
+  async sendWirelessReport(packet, label = 'wireless report') {
+    this.assertConnected();
+    if (this.transport !== 'wireless') throw new Error('Wireless output was requested while the wired transport is active.');
+    if (!(packet instanceof Uint8Array) || packet.byteLength !== WIRELESS_REPORT_SIZE) throw new Error(`Internal error: ${label} must be exactly ${WIRELESS_REPORT_SIZE} bytes.`);
+    await this.device.sendReport(0, packet);
   }
 
   async send(payload, readback = false, expectAckFor = null) {
-    this.assertConnected();
+    this.assertWired('64-byte feature-report command');
     if (!(payload instanceof Uint8Array) || payload.byteLength !== REPORT_SIZE) throw new Error('Internal error: HID payload must be exactly 64 bytes.');
     await this.device.sendFeatureReport(0, payload);
     await sleep(DELAY_MS);
@@ -201,7 +328,7 @@ export class AulaHID {
     return packet;
   }
   async sendRealtimePacket(packet, label, readback = true) {
-    this.assertConnected();
+    this.assertWired('Real-time Lighting stream');
     if (!(packet instanceof Uint8Array) || packet.byteLength !== REPORT_SIZE) {
       throw new Error('Internal error: real-time HID payload must be exactly 64 bytes.');
     }
@@ -227,7 +354,7 @@ export class AulaHID {
     return this.sendRealtimePacket(this.commandPacket(op, fields), label, true);
   }
   async enterRealtimePreview() {
-    this.assertConnected();
+    this.assertWired('PC-rendered real-time effects');
     if (this.realtimeReady) return;
     this.onLog('Entering AULA Real-time Lighting host-control mode…', 'info');
 
@@ -244,7 +371,7 @@ export class AulaHID {
     this.onLog('AULA Real-time Lighting is ready. Custom frames will now use the built-in 04 20 stream.', 'ok');
   }
   async streamRealtimeFrame(colors, ledIndices) {
-    this.assertConnected();
+    this.assertWired('PC-rendered real-time effects');
     if (!this.realtimeReady) await this.enterRealtimePreview();
     const packets = buildRealtimeFramePackets(colors, ledIndices, this.realtimeFramePayload, this.realtimeFramePackets);
     // Steady-state vendor stream: 04 20 (byte 8 = 8), eight raw 64-byte
@@ -284,6 +411,15 @@ export class AulaHID {
     this.assertConnected();
     this.realtimeReady = false;
     if (!Number.isInteger(mode) || mode < 0 || mode > 19) throw new Error('Effect mode must be 0–19.');
+    if (this.transport === 'wireless') {
+      // Captured 05AC:024F path: commit, short settle, then one native 32-byte
+      // FF60 output report. It is not the wired 04 20 streaming protocol.
+      await this.sendWirelessReport(buildWirelessRgbCommitPacket(), 'RGB commit');
+      await sleep(50);
+      await this.sendWirelessReport(buildWirelessRgbPacket({ mode, rgb, rainbow, brightness, speed, direction }), 'RGB mode');
+      this.onLog('Native AULA lighting sent through the 2.4 GHz receiver.', 'ok');
+      return;
+    }
     const p = new Uint8Array(REPORT_SIZE);
     p[0] = mode;
     if (mode !== 0) {
@@ -303,7 +439,7 @@ export class AulaHID {
   }
 
   async applyPerKey(colors, brightness = 5) {
-    this.assertConnected();
+    this.assertWired('Per-key RGB writes');
     const table = new Uint8Array(TABLE_SIZE);
     for (const [indexText, rgb] of Object.entries(colors)) {
       const index = Number(indexText);
@@ -329,7 +465,7 @@ export class AulaHID {
   }
 
   async applyRemap(table, fnLayer = false) {
-    this.assertConnected();
+    this.assertWired('Key remapping');
     await this.begin();
     await this.command(fnLayer ? 0x27 : 0x11, { 8: 0x09 });
     await this.bulk(table, true);
@@ -338,7 +474,7 @@ export class AulaHID {
   }
 
   async applyMacros(data) {
-    this.assertConnected();
+    this.assertWired('Macro writes');
     await this.command(0x19);
     await this.command(0x15, { 8: data.length / REPORT_SIZE });
     await sleep(40);
@@ -349,6 +485,13 @@ export class AulaHID {
 
   async applySettings(settings) {
     this.assertConnected();
+    if (this.transport === 'wireless') {
+      // The Settings panel stores response level as zero-based UI values 0–4;
+      // the 2.4 GHz report expects firmware levels 1–5.
+      await this.sendWirelessReport(buildWirelessSettingsPacket({ ...settings, response: Number(settings.response ?? 0) + 1 }), 'performance/settings');
+      this.onLog('Performance and key-restriction settings sent through the 2.4 GHz receiver.', 'ok');
+      return;
+    }
     const p = new Uint8Array(REPORT_SIZE);
     p[0] = 0; p[1] = 1;
     p[2] = settings.disableWin ? 1 : 0;

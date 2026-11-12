@@ -1,12 +1,12 @@
 {
   "name": "aula-f75-max-studio",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "private": true,
-  "description": "Unofficial AULA F75 Max desktop driver with global reactive input, 120 software-rendered RGB effects, per-effect tuning and curated palettes",
+  "description": "Unofficial AULA F75 Max desktop driver for USB-C and 2.4 GHz receiver modes, with global reactive input and 120 Studio RGB effects",
   "main": "desktop/main.cjs",
   "type": "module",
   "scripts": {
-    "test": "node test-protocol.mjs && node test-desktop-hid.mjs && node test-reactive-input.mjs && node test-effects-library.mjs && node test-effect-tuning.mjs && node test-light-chase.mjs",
+    "test": "node test-protocol.mjs && node test-desktop-hid.mjs && node test-reactive-input.mjs && node test-effects-library.mjs && node test-effect-tuning.mjs && node test-light-chase.mjs && node test-wireless-protocol.mjs",
     "desktop": "electron .",
     "dist:win": "electron-builder --win nsis portable --x64",
     "dist:win:installer": "electron-builder --win nsis --x64",

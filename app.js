@@ -90,10 +90,17 @@ function loadState() {
 
 function setConnected(connected, name='AULA F75 Max') {
   const status=$('connectionStatus'), button=$('connectBtn'), dot=$('sidebarDot');
+  const wireless=Boolean(connected && driver?.transport==='wireless');
   status.classList.toggle('connected',connected); dot.classList.toggle('connected',connected);
   status.querySelector('span').textContent=connected?`Connected · ${name}`:'Not connected';
   button.innerHTML=connected?'<span>×</span> Disconnect':'<span>↯</span> Connect keyboard';
   $('diagConnection').textContent=connected?'Connected':'Disconnected';
+  $('diagInterface').textContent=connected?(wireless?'0xFF60 · output':'0xFF13 · 0x0001'):'—';
+  $('diagTransport').textContent=connected?(wireless?'32-byte output reports':'64-byte feature reports'):'—';
+  $('diagWireless').textContent=connected?(wireless?'Connected · Native RGB':'Receiver not selected'):'Available · 05AC:024F';
+  $('diagIdentity').textContent=connected?(wireless?'05AC : 024F':'0C45 : 800A'):'0C45 : 800A / 05AC : 024F';
+  $('diagTransportSummary').textContent=connected?(wireless?'2.4 GHz receiver':'USB-C wired'):'USB-C + 2.4 GHz';
+  if($('connectionMode')) $('connectionMode').disabled=connected;
 }
 
 function showRisk(message, action) {
@@ -376,7 +383,8 @@ async function toggleHardwareEffect() {
     toast('Custom effect stopped; native AULA lighting restored.');
     return;
   }
-  if(!driver.connected) return toast('Connect the F75 Max by USB-C in wired mode before starting a hardware effect.','error');
+  if(!driver.connected) return toast('Connect the F75 Max by USB-C or its paired 2.4 GHz receiver first.','error');
+  if(!driver.supportsRealtimeStream) return toast('2.4 GHz mode supports the keyboard’s built-in lighting modes, but not the 120 PC-rendered live-stream effects. Use the Lighting tab to apply one of the 20 native modes, or connect by USB-C for live Studio effects.','error');
   const reactivePrivacy=isReactiveEffect()?`\n\nReactive input permission: this effect needs a global Windows keyboard listener while the effect is active, even when Studio is minimized or another app is focused. It listens to keyboard events from any keyboard attached to this PC, converts supported key positions to F75 Max LED indices, and does not record or store typed text. Stopping the effect disables the listener.`:'';
   showRisk(`This uses AULA's built-in Real-time Lighting mode. Studio first enters host-control mode once using the captured 04 18 → 04 28 → host clock block → 04 02 setup. Then each animation frame uses the vendor's steady-state 04 20 header, eight 64-byte colour blocks (512 bytes total, packed in visual order), and 04 02 frame commit. It does not use the persistent 04 23 per-key palette write or send 04 18 / 04 F0 on every frame. The packet order is adapted from captures for the 0C45:800A family and uses the supplied F75 Max 82-key layout. Stop the stream to restore native AULA lighting.${reactivePrivacy}`,async()=>{
     await driver.enterRealtimePreview();
@@ -625,7 +633,7 @@ function wireEvents() {
   $('connectBtn').addEventListener('click',async()=>{
     try{
       if(driver.connected){await stopHardwareEffect(true);await driver.disconnect();setConnected(false);return;}
-      await driver.connect();setConnected(true,driver.label);navigator.hid.addEventListener('disconnect',ev=>{if(ev.device===driver.device){hardwareEffectRunning=false;syncDesktopReactiveCapture();publishDesktopLightingState(false);stopEffectPreview();$('toggleEffectHardware').textContent='Start real-time lighting';setConnected(false);toast('Keyboard disconnected.');}});toast('Keyboard connected over USB-C.');
+      await driver.connect($('connectionMode')?.value||'auto');setConnected(true,driver.label);navigator.hid.addEventListener('disconnect',ev=>{if(ev.device===driver.device){hardwareEffectRunning=false;syncDesktopReactiveCapture();publishDesktopLightingState(false);stopEffectPreview();$('toggleEffectHardware').textContent='Start real-time lighting';setConnected(false);toast('Keyboard disconnected.');}});toast(driver.transport==='wireless'?'2.4 GHz receiver connected. Native AULA lighting and wireless settings are ready.':'Keyboard connected over USB-C.');
     }catch(e){log(e.message,'error');toast(e.message,'error');}
   });
   $('effectColor').addEventListener('input',e=>{state.lighting.color=e.target.value.toUpperCase();state.effectLab.palette='custom';$('colorHex').textContent=state.lighting.color;renderPaletteGrid();saveState();if(state.effectLab.preview)renderEffectPreviewFrame(performance.now());});
@@ -675,7 +683,7 @@ function wireEvents() {
   });
   ['disableWin','disableAltF4','disableAltTab','fnToggle','sleepOption','responseOption'].forEach(id=>$(id).addEventListener('change',()=>{state.settings=readSettings();saveState();}));
   $('applySettings').addEventListener('click',()=>{
-    showRisk('Function settings are reverse-engineered and partly decoded. This command changes persistent key restrictions and Fn settings.',async()=>{state.settings=readSettings();await driver.applySettings(state.settings);saveState();toast('Settings packet sent. Verify each setting on the keyboard.');});
+    showRisk(`Function settings are reverse-engineered and partly decoded. This command changes persistent key restrictions and Fn settings${driver?.transport==='wireless'?' through the 2.4 GHz receiver (32-byte settings report).':' through the wired USB configuration channel.'}`,async()=>{state.settings=readSettings();await driver.applySettings(state.settings);saveState();toast('Settings packet sent. Verify each setting on the keyboard.');});
   });
   $('clearLog').addEventListener('click',()=>{$('activityLog').replaceChildren();const e=document.createElement('div');e.className='log-empty';e.textContent='Log cleared.';$('activityLog').append(e);});
   $('saveProfile').addEventListener('click',()=>{const name=prompt('Name this profile:','My F75 setup');if(!name||!name.trim())return;state.profiles.unshift({name:name.trim(),savedAt:new Date().toISOString(),data:snapshot()});saveState();renderProfiles();toast('Profile saved on this computer.');});
@@ -685,7 +693,7 @@ function wireEvents() {
   $('riskCancel').addEventListener('click',()=>{$('riskDialog').close();pendingRiskAction=null;});
   $('riskContinue').addEventListener('click',async()=>{
     if(!pendingRiskAction)return;$('riskDialog').close();const action=pendingRiskAction;pendingRiskAction=null;
-    try{if(!driver.connected)throw new Error('Connect your keyboard in USB-C wired mode first.');await action();}
+    try{if(!driver.connected)throw new Error('Connect your keyboard by USB-C or with its paired 2.4 GHz receiver first.');await action();}
     catch(e){log(e.message,'error');toast(e.message,'error');}
   });
 }
@@ -715,7 +723,7 @@ async function init() {
   if(window.aulaDesktop?.isDesktop) {
     const info=await window.aulaDesktop.getRuntimeInfo().catch(()=>null);
     log(`Windows desktop driver ready${info?.version?` · v${info.version}`:''}. Closing the window keeps Studio running in the system tray.`,'ok');
-  } else log('AULA Studio ready. Connect the keyboard by USB-C in wired mode.');
+  } else log('AULA Studio ready. Select Auto detect, USB-C wired, or 2.4 GHz receiver mode, then connect.');
 }
 
 init().catch(e=>{console.error(e);toast(`Startup error: ${e.message}`,'error');});

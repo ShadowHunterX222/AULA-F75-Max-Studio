@@ -47,6 +47,7 @@ const fakeDriver = new AulaHID(()=>{});
 const sentReports=[];
 fakeDriver.device={opened:true,sendFeatureReport:async(_id,data)=>sentReports.push(new Uint8Array(data)),receiveFeatureReport:async()=>{const ack=new Uint8Array(64);ack[3]=1;return ack;}};
 fakeDriver.controlCollection={};
+fakeDriver.transport='wired';
 await fakeDriver.enterRealtimePreview();
 assert.equal(fakeDriver.realtimeReady,true);
 assert.deepEqual(Array.from(sentReports[0].slice(0,2)),[0x04,0x18]);

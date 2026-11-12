@@ -1,6 +1,6 @@
-# AULA F75 Max Studio — Windows Desktop Driver v0.8.1
+# AULA F75 Max Studio — Windows Desktop Driver v0.9.0
 
-An unofficial desktop configurator and real-time lighting controller for the wired AULA F75 Max (`VID_0C45`, `PID_800A`). The desktop app packages the Studio interface in Electron, uses WebHID for the keyboard's vendor-defined configuration collection (`MI_03`, usage page `0xFF13`, usage `0x0001`), and continues its effect loop when the main window is hidden to the Windows system tray.
+An unofficial Windows desktop configurator for the AULA F75 Max. Version 0.9.0 supports both USB-C wired mode (`VID_0C45`, `PID_800A`) and the dedicated 2.4 GHz USB receiver (`VID_05AC`, `PID_024F`). The Electron app uses WebHID and keeps PC-rendered lighting active in the system tray while wired.
 
 ## Recommended: build/install the Windows app
 
@@ -9,9 +9,9 @@ This source package includes scripts to produce both a Windows installer and a p
 1. Install **Node.js 22 or newer** from <https://nodejs.org/>.
 2. Extract the ZIP to a normal folder, such as `C:\AULA-F75-Max-Studio`.
 3. Double-click `BUILD-WINDOWS-EXE.bat`.
-4. When it finishes, open `release` and run `AULA-F75-Max-Studio-0.8.1-x64.exe` to install. The portable EXE is also placed there.
-5. Before launching the new build, quit any older AULA Studio version from its system-tray menu (older versions use the same single-instance ID and local port). Connect the keyboard using USB-C and set the physical switch to wired mode. Close the official AULA application and its background process before connecting.
-6. Launch **AULA F75 Max Studio** from the Start menu or desktop shortcut and click **Connect keyboard**. The desktop runtime now reuses an existing authorized HID grant where available; otherwise its Electron HID selector automatically chooses the AULA `0C45:800A` interface. The renderer then verifies that the selected interface contains `0xFF13 / 0x0001` before sending any commands.
+4. When it finishes, open `release` and run `AULA-F75-Max-Studio-0.9.0-x64.exe` to install. The portable EXE is also placed there.
+5. Before launching the new build, quit any older AULA Studio version from its system-tray menu (older versions use the same single-instance ID and local port). Connect using USB-C wired mode, or insert the 2.4 GHz receiver and select 2.4 GHz mode in Studio. For initial receiver pairing, set the keyboard mode to 2.4G and hold Fn + `~` for about 3 seconds until the display shows 2.4G Pairing. Close the official AULA application and its background process before connecting.
+6. Launch **AULA F75 Max Studio** from the Start menu or desktop shortcut and choose **Auto detect**, **USB-C wired**, or **2.4 GHz** from the connection selector, then click **Connect keyboard**. The renderer validates the wired `FF13:0001` feature-report interface or the receiver `FF60` output-report interface before sending transport-specific packets.
 
 The installer/portable app is self-contained; Node.js is required only to run the source project or build the EXEs. On first source launch, `RUN-DESKTOP.bat` installs the exact dependencies, then starts the desktop app.
 
@@ -30,17 +30,25 @@ Custom effects are host-rendered. The stock keyboard firmware does not permanent
 
 ## Smoothness and frame-rate expectations
 
-The `0C45:800A` real-time capture used by this project has a median interval of about 58.7 ms between `04 20` frame headers, approximately 17 FPS. Studio follows that measured cadence instead of assuming the faster rate from a different AULA USB chipset/protocol. Frame scheduling is phase-locked to a monotonic clock, the 512-byte RGB buffer is reused, keyboard geometry is compiled once for the effect renderers, reactive effects use a precomputed LED lookup, and the 82-key DOM preview is not repainted while the window is hidden. These reduce host-side work and timing jitter; they do not increase the keyboard's proven USB frame rate.
+The wired `0C45:800A` real-time capture used by this project has a median interval of about 58.7 ms between `04 20` frame headers, approximately 17 FPS. Studio follows that measured cadence instead of assuming the faster rate from a different AULA USB chipset/protocol. Frame scheduling is phase-locked to a monotonic clock, the 512-byte RGB buffer is reused, keyboard geometry is compiled once for the effect renderers, reactive effects use a precomputed LED lookup, and the 82-key DOM preview is not repainted while the window is hidden. These reduce host-side work and timing jitter; they do not increase the keyboard's proven USB frame rate.
 
 ## Real-time Lighting and 120 custom effects
 
-The 120 Studio effects are computed on the PC and use the keyboard's built-in **Real-time Lighting** stream. They are not sent as QMK effect IDs.
+The 120 Studio effects are computed on the PC and use the keyboard's built-in **Real-time Lighting** stream over USB-C wired mode. They are not sent as QMK effect IDs. The 2.4 GHz receiver path does not expose this 04 20 frame-stream transport.
 
 On the first start, Studio enters host-control/Real-time Lighting mode once using the reference AULA sequence: `04 18` → `04 28` (byte 8 = `01`) → a 64-byte host clock block (`00 01 5A ... AA 55`) → `04 02`.
 
 Each subsequent animation frame uses `04 20` (byte 8 = `08`) → eight 64-byte RGB blocks → `04 02`. The eight blocks contain one 512-byte array of 128 `[LED index, R, G, B]` records. The 82 F75 Max physical-key indices are packed in visual reading order; remaining records are zero padding. This is a volatile real-time stream, not the persistent `04 23` per-key colour table.
 
 The stream's frame cadence is approximately 58.7 ms (~17 FPS). Readbacks on the real-time path are consumed without applying the normal configuration ACK-byte check, matching the reference helper's behavior. The exact F75 Max host-control compatibility and every LED's physical order should still be confirmed on the user's device. Stop the stream before unplugging the keyboard.
+
+## 2.4 GHz receiver support (v0.9.0)
+
+The dedicated USB receiver is identified as `05AC:024F`. Studio requires its vendor-defined `0xFF60` output collection and output report ID 0; it does not treat an ordinary Bluetooth HID endpoint as a configurable receiver. This wireless path uses 32-byte output reports with a checksum in byte 31 (the low 8 bits of the sum of bytes 0–30). Native RGB changes send a `0F` commit report, wait briefly, then send the `05 10` native RGB-mode report. Receiver settings use the `07 10` report.
+
+When connected through 2.4 GHz, the Lighting tab can apply the keyboard's 20 native lighting modes and the Settings tab can send the reverse-engineered receiver settings report. USB-C remains required for the 120 PC-rendered real-time effects, per-key RGB table writes, key remapping, and macro writes. The receiver protocol does not currently provide a validated equivalent for those wired features. Bluetooth configuration is not supported.
+
+If the receiver is not paired, insert the dongle, switch the keyboard to 2.4G mode, and hold Fn + `~` for about 3 seconds until the keyboard display shows “2.4G Pairing”. The exact wording or pairing timing may vary by firmware revision.
 
 ## Reactive effects and global key input (v0.7.0)
 
@@ -54,12 +62,11 @@ The desktop build uses `uiohook-napi` (N-API native global input hook). The in-a
 
 ## Features
 
-- 20 native AULA hardware lighting modes.
-- 120 PC-rendered custom animations, including Rainbow Wave, with search, categories, preview, speed and brightness controls.
-- Real-time per-key RGB stream using the built-in AULA frame channel.
-- Per-key colour editor and local profiles.
-- Base and Fn-layer keymap editor.
-- Macro editor and profile export.
+- 20 native AULA hardware lighting modes over USB-C and the 2.4 GHz receiver.
+- 120 PC-rendered custom animations, including Rainbow Wave, with search, categories, preview, speed and brightness controls (USB-C wired mode).
+- Real-time per-key RGB stream using the built-in AULA frame channel (USB-C wired mode).
+- Per-key colour editor, base/Fn keymap writes and macro uploads (USB-C wired mode).
+- Local profile save/import/export.
 - Function/settings editor.
 - Alt_R, Fn, Ctrl_R and LED98 kept as four independent lighting slots.
 
@@ -80,10 +87,10 @@ All four LED indices are unique. LED98 has keycode `0x00`, so it is a lighting-o
 
 ## Compatibility and safety
 
-- Wired keyboard: `VID_0C45`, `PID_800A`.
-- Configuration collection: `MI_03`, usage page `0xFF13`, usage `0x0001`.
-- `MI_02` / `0xFF68` is a separate display interface; it is not the lighting command collection.
-- The 2.4 GHz receiver `05AC:024F` is not enabled in this build.
+- USB-C wired keyboard: `VID_0C45`, `PID_800A`; configuration collection `MI_03`, usage page `0xFF13`, usage `0x0001` (64-byte feature reports).
+- 2.4 GHz receiver: `VID_05AC`, `PID_024F`; vendor output collection usage page `0xFF60` (32-byte output reports).
+- `MI_02` / `0xFF68` is a separate wired display interface; it is not the lighting command collection.
+- The 2.4 GHz path uses its own checksum-protected packet format and must never be sent wired 64-byte feature-report commands.
 - Studio is not QMK/Vial firmware. It cannot enable firmware-only behavior such as tap dance or native QMK keycodes through the UI alone.
 - The `04 20` frame stream is intended to be volatile; it does not write the persistent `04 23` colour table.
 - Export profiles before attempting experimental remap, macro or settings writes.
@@ -93,7 +100,7 @@ All four LED indices are unique. LED98 has keycode `0x00`, so it is a lighting-o
 - `index.html`, `styles.css` — desktop user interface.
 - `app.js` — UI state, profile persistence and real-time effect loop.
 - `effects.js` — 120 Studio animation renderers with cached layout geometry.
-- `protocol.js` — HID transport, AULA lighting commands and reusable real-time frame builder.
+- `protocol.js` — dual HID transports, native 2.4 GHz RGB/settings packets, wired AULA commands and reusable wired real-time frame builder.
 - `keymap.json` — 82-key F75 Max layout and LED indices.
 - `desktop/main.cjs` — Electron main process, loopback server, tray lifecycle, HID blocklist override (scoped by permission handlers), and HID chooser/permission diagnostics.
 - `desktop/preload.cjs` — narrow IPC bridge for tray, status and reactive input commands.
@@ -142,8 +149,6 @@ The palette chooser provides Aurora, Arctic Ice, Sakura, Sunset, Deep Ocean, Emb
 - Kept the captured 58.7 ms target cadence; the actual physical rate depends on HID transfer timing and firmware response. No unverified high-speed protocol timings were introduced.
 - Preserved all 120 effects, 19 palettes, global reactive capture, existing profiles, and LED mapping 95–98.
 
-## License and copyright
+## Publish to GitHub
 
-Copyright (c) 2026 ShadowHunterX222. **All Rights Reserved.**
-
-This project is proprietary. No permission or license is granted to use, reproduce, modify, distribute, sublicense, sell, or create derivative works from this software without the copyright holder's prior express written permission. Viewing or downloading this public repository does not grant those rights. See [LICENSE](LICENSE).
+On Windows, install [Git](https://git-scm.com/download/win) and [GitHub CLI](https://cli.github.com/), then run `PUBLISH-TO-GITHUB.bat`. The script signs in through GitHub CLI if needed, creates a local `main` commit, asks for the repository name and public/private visibility, creates the GitHub repository when it does not already exist, and pushes the branch. It does not embed or save a personal access token in the project.

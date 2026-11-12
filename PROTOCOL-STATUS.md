@@ -1,11 +1,11 @@
-# Protocol and implementation status — AULA F75 Max Studio v0.8.1
+# Protocol and implementation status — AULA F75 Max Studio v0.9.0
 
 ## Hardware identity
 
 - Wired device: `VID_0C45`, `PID_800A`.
 - Main command interface: USB `MI_03`, HID usage page `0xFF13`, usage `0x0001`, feature report ID 0.
 - `MI_02` is not the custom lighting command collection.
-- 2.4 GHz receiver ID `05AC:024F` is not implemented.
+- 2.4 GHz receiver ID `05AC:024F` now has a separate native RGB/settings transport using `0xFF60` 32-byte output reports. PC-rendered streaming, per-key RGB tables, remapping and macros remain USB-C-only.
 
 ## Real-time lighting stream
 
@@ -75,7 +75,7 @@ Not verified in this environment:
 
 - Physical keyboard response to the host-control handshake on this exact F75 Max revision.
 - Per-key LED order on every hardware batch.
-- Long-duration streaming stability, wireless receiver support, or LCD/GIF writes.
+- Long-duration 2.4 GHz receiver testing on the user’s physical keyboard, Bluetooth configuration, or LCD/GIF writes.
 - A signed installer; Windows EXEs are generated locally using `BUILD-WINDOWS-EXE.bat`.
 
 ## Protocol references
@@ -118,3 +118,15 @@ The effect library contains 120 software-generated animation patterns. 68 new al
 ## v0.8.0 renderer and tuning update
 
 The custom-effect renderer can emit numeric RGB arrays directly for the hardware stream, eliminating the prior CSS `rgb()` string-to-byte regular-expression conversion for each LED on every frame. Palette stops are cached, and the HID transport reuses its 512-byte frame buffer plus eight pre-created 64-byte report views. The preview repaint is capped at 10 FPS while hardware streaming to reduce UI overhead. Frame pacing waits based on actual frame-send duration and keeps at least a 2 ms inter-frame idle, with the captured 58.7 ms frame target retained. Custom effect speed and brightness are independent of native AULA settings, adjustable from 25% to 200%, stored per selected effect, and included in local state/profile exports. Auto-brightness suggestions compensate for effects whose patterns are intentionally sparse or low-luminance.
+
+
+## v0.9.0 — 2.4 GHz receiver transport
+
+- USB-C path remains `0C45:800A`, command usage `FF13:0001`, 64-byte feature reports.
+- 2.4 GHz receiver path is `05AC:024F`, raw output usage page `FF60`, output report ID 0, 32-byte reports.
+- Wireless checksum is the low byte of the sum of report bytes 0–30, stored at byte 31.
+- Native RGB update sends a 32-byte `0F` commit report, waits 50 ms, then sends a `05 10` RGB-mode report.
+- Receiver performance/settings use a `07 10` report. The app converts the Settings panel’s zero-based response selector to firmware levels 1–5.
+- The renderer rejects 05AC:024F devices without the FF60 output collection so Bluetooth HID is not mistakenly accepted as the receiver transport.
+- Wired and wireless packets are kept in separate code paths. Wired 04 20 real-time frame streaming, persistent per-key RGB tables, keymap writes and macro writes are not sent over the 2.4 GHz transport.
+- The 2.4 GHz packet builders and dispatch sequence have offline unit tests. Physical dongle testing is still required before treating this transport as hardware-verified on every F75 Max firmware revision.

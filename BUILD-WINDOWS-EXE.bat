@@ -37,8 +37,8 @@ if errorlevel 1 (
 )
 echo.
 echo Build complete:
-echo   release\AULA-F75-Max-Studio-0.8.1-x64.exe
-if exist release\AULA-F75-Max-Studio-Portable-0.8.1.exe echo   release\AULA-F75-Max-Studio-Portable-0.8.1.exe
+echo   release\AULA-F75-Max-Studio-0.9.0-x64.exe
+if exist release\AULA-F75-Max-Studio-Portable-0.9.0.exe echo   release\AULA-F75-Max-Studio-Portable-0.9.0.exe
 echo.
 pause
 endlocal
