@@ -152,3 +152,9 @@ The palette chooser provides Aurora, Arctic Ice, Sakura, Sunset, Deep Ocean, Emb
 ## Publish to GitHub
 
 On Windows, install [Git](https://git-scm.com/download/win) and [GitHub CLI](https://cli.github.com/), then run `PUBLISH-TO-GITHUB.bat`. The script signs in through GitHub CLI if needed, creates a local `main` commit, asks for the repository name and public/private visibility, creates the GitHub repository when it does not already exist, and pushes the branch. It does not embed or save a personal access token in the project.
+
+## License and copyright
+
+Copyright (c) 2026 ShadowHunterX222. **All Rights Reserved.**
+
+This project is proprietary. No permission or license is granted to use, reproduce, modify, distribute, sublicense, sell, or create derivative works from this software without the copyright holder's prior express written permission. Viewing or downloading this public repository does not grant those rights. See [LICENSE](LICENSE).
