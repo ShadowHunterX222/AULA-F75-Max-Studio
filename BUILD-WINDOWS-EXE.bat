@@ -29,6 +29,13 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
+echo Rebuilding the native global input module for the pinned Electron runtime...
+call npm run rebuild:native
+if errorlevel 1 (
+  echo Native reactive-input build failed. Install Visual Studio Build Tools with Desktop development with C++ and a Windows SDK.
+  pause
+  exit /b 1
+)
 echo Running offline protocol, effect, and packaging tests...
 call npm test
 if errorlevel 1 (
@@ -47,7 +54,7 @@ if errorlevel 1 (
 )
 echo.
 echo Build complete:
-echo   release\AULA-F75-Max-Studio-Portable-0.9.1.exe
+echo   release\AULA-F75-Max-Studio-Portable-0.9.2.exe
 echo.
 echo This is the standalone portable application. No installer or separate project files are needed to run it.
 echo.
