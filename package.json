@@ -32,6 +32,7 @@
       "keymap.json",
       "desktop/**/*",
       "node_modules/uiohook-napi/**/*",
+      "node_modules/node-gyp-build/**/*",
       "build/**/*",
       "README.md",
       "PROTOCOL-STATUS.md",
