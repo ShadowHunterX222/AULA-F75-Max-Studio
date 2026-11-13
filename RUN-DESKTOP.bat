@@ -22,5 +22,12 @@ echo Installing desktop and global reactive-input dependencies. This needs inter
 call npm install --no-audit --no-fund
 if errorlevel 1 (echo Dependency installation failed.& pause & exit /b 1)
 :runApp
+echo Rebuilding global reactive-input support for the pinned Electron runtime...
+call npm run rebuild:native
+if errorlevel 1 (
+  echo Native reactive-input build failed. Install Visual Studio Build Tools with Desktop development with C++ and a Windows SDK.
+  pause
+  exit /b 1
+)
 call npm run desktop
 endlocal
