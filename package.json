@@ -1,6 +1,6 @@
 {
   "name": "aula-f75-max-studio",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "private": true,
   "description": "Unofficial AULA F75 Max desktop driver for USB-C and 2.4 GHz receiver modes, with global reactive input and 120 Studio RGB effects",
   "main": "desktop/main.cjs",
@@ -9,7 +9,8 @@
     "test": "node test-protocol.mjs && node test-desktop-hid.mjs && node test-reactive-input.mjs && node test-effects-library.mjs && node test-effect-tuning.mjs && node test-light-chase.mjs && node test-wireless-protocol.mjs && node test-packaging-config.mjs",
     "desktop": "electron .",
     "dist:win": "electron-builder --win portable --x64 --publish never",
-    "dist:win:portable": "electron-builder --win portable --x64"
+    "dist:win:portable": "electron-builder --win portable --x64",
+    "rebuild:native": "electron-builder install-app-deps"
   },
   "devDependencies": {
     "electron": "45.2.3",
@@ -30,13 +31,14 @@
       "effects.js",
       "keymap.json",
       "desktop/**/*",
+      "node_modules/uiohook-napi/**/*",
       "build/**/*",
       "README.md",
       "PROTOCOL-STATUS.md",
       "LICENSE",
       "package.json",
       "reactive-key-map.json",
-      "CHANGELOG-v0.9.1.md"
+      "CHANGELOG-v0.9.2.md"
     ],
     "win": {
       "target": [
@@ -51,6 +53,7 @@
     "asar": true,
     "compression": "normal",
     "asarUnpack": [
+      "node_modules/uiohook-napi/**/*",
       "**/*.node"
     ]
   },
