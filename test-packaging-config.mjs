@@ -10,6 +10,8 @@ assert.equal(pkg.build.portable.artifactName, 'AULA-F75-Max-Studio-Portable-${ve
 assert.equal(pkg.scripts['dist:win:installer'], undefined, 'installer build script must not be exposed');
 assert.equal(pkg.build.nsis, undefined, 'NSIS installer configuration must not be present');
 assert.equal(pkg.dependencies['uiohook-napi'], '1.5.5', 'global reactive input must remain a pinned production dependency');
+assert.equal(pkg.allowScripts['uiohook-napi@1.5.5'], true, 'npm must be allowed to run the pinned native hook installer');
+assert.equal(pkg.allowScripts['electron-winstaller@5.4.0'], true, 'npm must be allowed to run the pinned Windows packaging dependency installer');
 assert.ok(pkg.build.files.includes('node_modules/uiohook-napi/**/*'), 'portable package must explicitly include the native input dependency');
 assert.ok(pkg.build.files.includes('node_modules/node-gyp-build/**/*'), 'portable package must include uiohook-napi native loader dependency');
 assert.ok(pkg.build.asarUnpack.includes('node_modules/uiohook-napi/**/*'), 'the native input package must be unpacked from ASAR');
