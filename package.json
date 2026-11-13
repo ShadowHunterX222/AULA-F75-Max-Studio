@@ -63,5 +63,9 @@
   },
   "dependencies": {
     "uiohook-napi": "1.5.5"
+  },
+  "allowScripts": {
+    "uiohook-napi@1.5.5": true,
+    "electron-winstaller@5.4.0": true
   }
 }
