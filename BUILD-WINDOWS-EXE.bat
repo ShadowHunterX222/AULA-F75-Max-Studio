@@ -21,24 +21,35 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-echo Running offline protocol and effect tests...
-call npm test
+echo Approving the pinned native build scripts required by this project...
+call npm install-scripts approve uiohook-napi electron-winstaller
 if errorlevel 1 (
-  echo Tests failed. The Windows installer will not be built.
+  echo Could not approve dependency install scripts.
+  echo Run: npm install-scripts approve uiohook-napi electron-winstaller
   pause
   exit /b 1
 )
-echo Building the Windows x64 installer and portable EXE...
+echo Running offline protocol, effect, and packaging tests...
+call npm test
+if errorlevel 1 (
+  echo Tests failed. The portable EXE will not be built.
+  pause
+  exit /b 1
+)
+echo Building the single Windows x64 portable EXE...
 call npm run dist:win
 if errorlevel 1 (
-  echo Build failed. See the error above.
+  echo Build failed. The uiohook-napi native module may need Visual Studio C++ Build Tools.
+  echo Install Visual Studio Build Tools with Desktop development with C++ and a Windows SDK,
+  echo then reopen this file and run it again.
   pause
   exit /b 1
 )
 echo.
 echo Build complete:
-echo   release\AULA-F75-Max-Studio-0.9.0-x64.exe
-if exist release\AULA-F75-Max-Studio-Portable-0.9.0.exe echo   release\AULA-F75-Max-Studio-Portable-0.9.0.exe
+echo   release\AULA-F75-Max-Studio-Portable-0.9.1.exe
+echo.
+echo This is the standalone portable application. No installer or separate project files are needed to run it.
 echo.
 pause
 endlocal

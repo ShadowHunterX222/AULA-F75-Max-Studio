@@ -1,19 +1,20 @@
-# AULA F75 Max Studio — Windows Desktop Driver v0.9.0
+# AULA F75 Max Studio — Windows Desktop Driver v0.9.1
 
 An unofficial Windows desktop configurator for the AULA F75 Max. Version 0.9.0 supports both USB-C wired mode (`VID_0C45`, `PID_800A`) and the dedicated 2.4 GHz USB receiver (`VID_05AC`, `PID_024F`). The Electron app uses WebHID and keeps PC-rendered lighting active in the system tray while wired.
 
 ## Recommended: build/install the Windows app
 
-This source package includes scripts to produce both a Windows installer and a portable EXE. A precompiled EXE is not included in this ZIP because the build environment used to prepare it had no access to the npm registry; the Windows build script downloads the pinned Electron and electron-builder packages on your PC.
+This source package builds **one standalone Windows x64 portable EXE**. It does not create an installer, a setup wizard, or a folder of loose application files. A precompiled EXE is not included in this ZIP; the build script downloads the pinned Electron and electron-builder packages on your PC.
 
 1. Install **Node.js 22 or newer** from <https://nodejs.org/>.
-2. Extract the ZIP to a normal folder, such as `C:\AULA-F75-Max-Studio`.
-3. Double-click `BUILD-WINDOWS-EXE.bat`.
-4. When it finishes, open `release` and run `AULA-F75-Max-Studio-0.9.0-x64.exe` to install. The portable EXE is also placed there.
-5. Before launching the new build, quit any older AULA Studio version from its system-tray menu (older versions use the same single-instance ID and local port). Connect using USB-C wired mode, or insert the 2.4 GHz receiver and select 2.4 GHz mode in Studio. For initial receiver pairing, set the keyboard mode to 2.4G and hold Fn + `~` for about 3 seconds until the display shows 2.4G Pairing. Close the official AULA application and its background process before connecting.
-6. Launch **AULA F75 Max Studio** from the Start menu or desktop shortcut and choose **Auto detect**, **USB-C wired**, or **2.4 GHz** from the connection selector, then click **Connect keyboard**. The renderer validates the wired `FF13:0001` feature-report interface or the receiver `FF60` output-report interface before sending transport-specific packets.
+2. Install **Visual Studio Build Tools** with **Desktop development with C++**, MSVC x64/x86 tools, and a Windows SDK. This is required to compile the native `uiohook-napi` global-key hook.
+3. Extract the ZIP to a normal folder, such as `C:\AULA-F75-Max-Studio`.
+4. Double-click `BUILD-WINDOWS-EXE.bat`. It installs the pinned dependencies, approves the project's native build scripts, runs the offline tests, and builds the portable EXE.
+5. When it finishes, open `release` and run `AULA-F75-Max-Studio-Portable-0.9.1.exe`. Copy just this EXE to another Windows x64 PC; Node.js, the source folder, and an installer are not needed to run the packaged app.
+6. Before launching the new build, quit any older AULA Studio version from its system-tray menu (older versions use the same single-instance ID and local port). Connect using USB-C wired mode, or insert the 2.4 GHz receiver and select 2.4 GHz mode in Studio. For initial receiver pairing, set the keyboard mode to 2.4G and hold Fn + `~` for about 3 seconds until the display shows 2.4G Pairing. Close the official AULA application and its background process before connecting.
+7. Launch **AULA F75 Max Studio** and choose **Auto detect**, **USB-C wired**, or **2.4 GHz** from the connection selector, then click **Connect keyboard**. The renderer validates the wired `FF13:0001` feature-report interface or the receiver `FF60` output-report interface before sending transport-specific packets.
 
-The installer/portable app is self-contained; Node.js is required only to run the source project or build the EXEs. On first source launch, `RUN-DESKTOP.bat` installs the exact dependencies, then starts the desktop app.
+The portable EXE is a self-extracting Electron portable application: it is delivered as one file and requires no installation, though it may unpack its runtime to a temporary directory while running. Node.js and Visual Studio Build Tools are needed only to build the EXE, not to run the finished EXE. On first source launch, `RUN-DESKTOP.bat` installs the exact dependencies, then starts the desktop app.
 
 ## Desktop behavior
 
@@ -106,8 +107,10 @@ All four LED indices are unique. LED98 has keycode `0x00`, so it is a lighting-o
 - `desktop/preload.cjs` — narrow IPC bridge for tray, status and reactive input commands.
 - `reactive-key-map.json` — browser and global-hook key-to-USB-usage lookup used to address all 80 host-visible keys.
 - `test-reactive-input.mjs` — verifies key-event mapping coverage and global-hook lifecycle wiring.
+- `test-packaging-config.mjs` — ensures the Windows distribution stays portable-EXE-only.
+- `.github/workflows/build-windows-portable.yml` — builds and uploads the standalone EXE on a Windows GitHub Actions runner.
 - `RUN-DESKTOP.bat` — run desktop app from source.
-- `BUILD-WINDOWS-EXE.bat` — run tests and produce Setup + Portable Windows EXEs.
+- `BUILD-WINDOWS-EXE.bat` — run tests and produce one standalone Windows x64 portable EXE.
 - `START-WINDOWS.bat` — legacy browser/local-server launcher.
 - `test-protocol.mjs` — offline protocol, LED mapping, and effect checks.
 

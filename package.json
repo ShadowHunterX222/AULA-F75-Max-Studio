@@ -1,15 +1,14 @@
 {
   "name": "aula-f75-max-studio",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": true,
   "description": "Unofficial AULA F75 Max desktop driver for USB-C and 2.4 GHz receiver modes, with global reactive input and 120 Studio RGB effects",
   "main": "desktop/main.cjs",
   "type": "module",
   "scripts": {
-    "test": "node test-protocol.mjs && node test-desktop-hid.mjs && node test-reactive-input.mjs && node test-effects-library.mjs && node test-effect-tuning.mjs && node test-light-chase.mjs && node test-wireless-protocol.mjs",
+    "test": "node test-protocol.mjs && node test-desktop-hid.mjs && node test-reactive-input.mjs && node test-effects-library.mjs && node test-effect-tuning.mjs && node test-light-chase.mjs && node test-wireless-protocol.mjs && node test-packaging-config.mjs",
     "desktop": "electron .",
-    "dist:win": "electron-builder --win nsis portable --x64",
-    "dist:win:installer": "electron-builder --win nsis --x64",
+    "dist:win": "electron-builder --win portable --x64",
     "dist:win:portable": "electron-builder --win portable --x64"
   },
   "devDependencies": {
@@ -36,23 +35,15 @@
       "PROTOCOL-STATUS.md",
       "LICENSE",
       "package.json",
-      "reactive-key-map.json"
+      "reactive-key-map.json",
+      "CHANGELOG-v0.9.1.md"
     ],
     "win": {
       "target": [
-        "nsis",
         "portable"
       ],
       "icon": "build/icon.ico",
-      "artifactName": "AULA-F75-Max-Studio-${version}-${arch}.${ext}"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "runAfterFinish": true,
-      "deleteAppDataOnUninstall": false
+      "artifactName": "AULA-F75-Max-Studio-${version}-x64.${ext}"
     },
     "portable": {
       "artifactName": "AULA-F75-Max-Studio-Portable-${version}.${ext}"

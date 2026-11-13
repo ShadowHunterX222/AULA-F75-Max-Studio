@@ -1,0 +1,72 @@
+name: Build Windows portable EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'desktop/**'
+      - '*.js'
+      - '*.mjs'
+      - '*.html'
+      - '*.css'
+      - '*.json'
+      - 'build/**'
+      - 'BUILD-WINDOWS-EXE.bat'
+      - '.github/workflows/build-windows-portable.yml'
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Update npm for install-script approvals
+        run: npm install --global npm@latest
+
+      - name: Install pinned dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Approve pinned native dependency scripts
+        run: npm install-scripts approve uiohook-napi electron-winstaller
+
+      - name: Run protocol, effect, and packaging tests
+        run: npm test
+
+      - name: Build single portable EXE
+        run: npm run dist:win
+
+      - name: Verify single EXE output
+        shell: pwsh
+        run: |
+          $exe = 'release/AULA-F75-Max-Studio-Portable-0.9.1.exe'
+          if (-not (Test-Path $exe)) { throw "Expected portable EXE was not produced: $exe" }
+          if (Test-Path 'release/builder-effective-config.yaml') { Remove-Item 'release/builder-effective-config.yaml' }
+          $files = Get-ChildItem release -File
+          if ($files.Count -ne 1 -or $files[0].Name -ne 'AULA-F75-Max-Studio-Portable-0.9.1.exe') {
+            throw "Expected exactly one release file, found: $($files.Name -join ', ')"
+          }
+          Get-Item $exe | Select-Object Name, Length
+
+      - name: Upload the standalone EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: AULA-F75-Max-Studio-Portable-0.9.1
+          path: release/AULA-F75-Max-Studio-Portable-0.9.1.exe
+          if-no-files-found: error
+          retention-days: 14
