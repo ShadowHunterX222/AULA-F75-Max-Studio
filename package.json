@@ -55,7 +55,8 @@
     "compression": "normal",
     "asarUnpack": [
       "node_modules/uiohook-napi/**/*",
-      "**/*.node"
+      "**/*.node",
+      "node_modules/node-gyp-build/**/*"
     ]
   },
   "engines": {
