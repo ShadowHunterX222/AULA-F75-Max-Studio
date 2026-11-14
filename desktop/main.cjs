@@ -61,6 +61,26 @@ function stopReactiveKeyboardCapture() {
   notifyReactiveInputStatus(false);
 }
 
+function loadReactiveHookModule() {
+  if (app.isPackaged) {
+    // Native packages are unpacked by electron-builder. Load from the physical
+    // app.asar.unpacked tree so Node does not have to resolve an unpacked
+    // package through the virtual app.asar node_modules directory.
+    const unpackedModules = path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules');
+    const hookPath = path.join(unpackedModules, 'uiohook-napi');
+    const loaderPath = path.join(unpackedModules, 'node-gyp-build');
+    const missing = [
+      !fs.existsSync(path.join(hookPath, 'package.json')) ? 'uiohook-napi' : '',
+      !fs.existsSync(path.join(loaderPath, 'package.json')) ? 'node-gyp-build' : ''
+    ].filter(Boolean);
+    if (missing.length) {
+      throw new Error(`Packaged reactive input component(s) missing from app.asar.unpacked: ${missing.join(', ')}. Rebuild the portable EXE.`);
+    }
+    return require(hookPath);
+  }
+  return require('uiohook-napi');
+}
+
 function startReactiveKeyboardCapture() {
   if (process.platform !== 'win32') {
     notifyReactiveInputStatus(false, 'Global reactive keyboard input is currently supported only by the Windows desktop driver.');
@@ -71,7 +91,7 @@ function startReactiveKeyboardCapture() {
       // Loaded only after the user starts a reactive hardware effect and accepts
       // the warning. No key text is captured or stored; only HID usage IDs that
       // map to this keyboard layout are forwarded to the renderer.
-      const hookModule = require('uiohook-napi');
+      const hookModule = loadReactiveHookModule();
       reactiveHook = hookModule.uIOhook;
       const enumObject = hookModule.UiohookKey || {};
       reactiveHookKeyNameByCode = new Map(Object.entries(enumObject).map(([name, value]) => [Number(value), name]));
