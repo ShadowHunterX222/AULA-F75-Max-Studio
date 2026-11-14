@@ -1,4 +1,4 @@
-# AULA F75 Max Studio — Windows Desktop Driver v0.9.2
+# AULA F75 Max Studio — Windows Desktop Driver v0.9.3
 
 An unofficial Windows desktop configurator for the AULA F75 Max. Version 0.9.0 supports both USB-C wired mode (`VID_0C45`, `PID_800A`) and the dedicated 2.4 GHz USB receiver (`VID_05AC`, `PID_024F`). The Electron app uses WebHID and keeps PC-rendered lighting active in the system tray while wired.
 
@@ -10,7 +10,7 @@ This source package builds **one standalone Windows x64 portable EXE**. It does 
 2. Install **Visual Studio Build Tools** with **Desktop development with C++**, MSVC x64/x86 tools, and a Windows SDK. This is required to compile the native `uiohook-napi` global-key hook.
 3. Extract the ZIP to a normal folder, such as `C:\AULA-F75-Max-Studio`.
 4. Double-click `BUILD-WINDOWS-EXE.bat`. It installs the pinned dependencies, approves the project's native build scripts, rebuilds `uiohook-napi` for the pinned Electron runtime, runs the offline tests, and builds the portable EXE.
-5. When it finishes, open `release` and run `AULA-F75-Max-Studio-Portable-0.9.2.exe`. Copy just this EXE to another Windows x64 PC; Node.js, the source folder, and an installer are not needed to run the packaged app.
+5. When it finishes, open `release` and run `AULA-F75-Max-Studio-Portable-0.9.3.exe`. Copy just this EXE to another Windows x64 PC; Node.js, the source folder, and an installer are not needed to run the packaged app.
 6. Before launching the new build, quit any older AULA Studio version from its system-tray menu (older versions use the same single-instance ID and local port). Connect using USB-C wired mode, or insert the 2.4 GHz receiver and select 2.4 GHz mode in Studio. For initial receiver pairing, set the keyboard mode to 2.4G and hold Fn + `~` for about 3 seconds until the display shows 2.4G Pairing. Close the official AULA application and its background process before connecting.
 7. Launch **AULA F75 Max Studio** and choose **Auto detect**, **USB-C wired**, or **2.4 GHz** from the connection selector, then click **Connect keyboard**. The renderer validates the wired `FF13:0001` feature-report interface or the receiver `FF60` output-report interface before sending transport-specific packets.
 
@@ -40,6 +40,10 @@ The 120 Studio effects are computed on the PC and use the keyboard's built-in **
 On the first start, Studio enters host-control/Real-time Lighting mode once using the reference AULA sequence: `04 18` → `04 28` (byte 8 = `01`) → a 64-byte host clock block (`00 01 5A ... AA 55`) → `04 02`.
 
 Each subsequent animation frame uses `04 20` (byte 8 = `08`) → eight 64-byte RGB blocks → `04 02`. The eight blocks contain one 512-byte array of 128 `[LED index, R, G, B]` records. The 82 F75 Max physical-key indices are packed in visual reading order; remaining records are zero padding. This is a volatile real-time stream, not the persistent `04 23` per-key colour table.
+
+## Background performance and app switching (v0.9.3)
+
+When the Studio window loses focus, the optional software-only preview pauses and the 82-key DOM preview stops repainting. When Studio regains focus, the preview resumes automatically. If a hardware real-time lighting effect is active, PC-rendered frames continue to be sent to the keyboard so the live effect does not stop when switching applications. The window uses Chromium's normal background frame throttling and no longer forces the renderer to retain foreground scheduling priority. The dedicated background-timer override remains in place for the active USB frame loop.
 
 The stream's frame cadence is approximately 58.7 ms (~17 FPS). Readbacks on the real-time path are consumed without applying the normal configuration ACK-byte check, matching the reference helper's behavior. The exact F75 Max host-control compatibility and every LED's physical order should still be confirmed on the user's device. Stop the stream before unplugging the keyboard.
 

@@ -54,7 +54,7 @@ if errorlevel 1 (
 )
 echo.
 echo Build complete:
-echo   release\AULA-F75-Max-Studio-Portable-0.9.2.exe
+echo   release\AULA-F75-Max-Studio-Portable-0.9.3.exe
 echo.
 echo This is the standalone portable application. No installer or separate project files are needed to run it.
 echo.

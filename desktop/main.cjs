@@ -31,7 +31,6 @@ let reactiveHookListenerInstalled = false;
 let reactiveHookKeyNameByCode = null;
 
 app.setAppUserModelId(APP_ID);
-app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 // This keyboard/receiver presents vendor-defined HID collections. Chromium's
 // default HID blocklist can hide them on some Windows builds. Access remains
@@ -45,6 +44,12 @@ function mainLog(message) {
 
 
 const REACTIVE_INPUT_MAP = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'reactive-key-map.json'), 'utf8'));
+
+function notifyWindowFocus(focused) {
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+    mainWindow.webContents.send('desktop:window-focus', { focused: Boolean(focused) });
+  }
+}
 
 function notifyReactiveInputStatus(active, error = '') {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -335,7 +340,7 @@ function createWindow(showOnReady = true) {
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
-      backgroundThrottling: false,
+      backgroundThrottling: true,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -348,6 +353,8 @@ function createWindow(showOnReady = true) {
     if (!localOrigin || !url.startsWith(localOrigin + '/') && url !== localOrigin) event.preventDefault();
   });
   mainWindow.once('ready-to-show', () => { if (showOnReady && mainWindow && !mainWindow.isDestroyed()) mainWindow.show(); });
+  mainWindow.on('focus', () => notifyWindowFocus(true));
+  mainWindow.on('blur', () => notifyWindowFocus(false));
   mainWindow.on('close', event => {
     if (!quitting) {
       event.preventDefault();
@@ -390,7 +397,8 @@ ipcMain.handle('desktop:runtime-info', () => ({
   isDesktop: true,
   version: app.getVersion(),
   userDataPath: app.getPath('userData'),
-  stableOrigin: localOrigin
+  stableOrigin: localOrigin,
+  windowFocused: Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused())
 }));
 
 const gotLock = app.requestSingleInstanceLock();
