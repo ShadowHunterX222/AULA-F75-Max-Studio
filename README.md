@@ -59,7 +59,7 @@ The listener is loaded only after the user starts a hardware effect in the React
 
 **Privacy / device scope:** the global hook receives keyboard events from any keyboard attached to this PC; the current library does not identify which physical keyboard generated an event. Therefore typing on another connected keyboard can also trigger the F75 Max effect. The app filters events to keys present in the 82-position F75 Max layout. Fn is normally consumed by keyboard firmware and does not generate a regular Windows key event; LED98 is a lighting-only placeholder with no keycode.
 
-The portable build explicitly includes the complete `uiohook-napi` package and unpacks it from ASAR; the build script also rebuilds its native addon for the pinned Electron runtime. The desktop build uses `uiohook-napi` (N-API native global input hook). The in-app browser preview uses the same USB HID usage mapping through `KeyboardEvent.code`; it only reacts while its preview window has focus.
+The portable build explicitly includes and unpacks both `uiohook-napi` and `node-gyp-build`. Packaged Studio loads them by absolute path from `resources/app.asar.unpacked/node_modules`, avoiding bare-module resolution through the ASAR virtual filesystem; the build script also rebuilds the native addon for the pinned Electron runtime. The desktop build uses `uiohook-napi` (N-API native global input hook). The in-app browser preview uses the same USB HID usage mapping through `KeyboardEvent.code`; it only reacts while its preview window has focus.
 
 ## Features
 
