@@ -5,7 +5,7 @@ const pkg = JSON.parse(await readFile(new URL('./package.json', import.meta.url)
 const installedHook = JSON.parse(await readFile(new URL('./node_modules/uiohook-napi/package.json', import.meta.url), 'utf8'));
 const installedLoader = JSON.parse(await readFile(new URL('./node_modules/node-gyp-build/package.json', import.meta.url), 'utf8'));
 
-assert.equal(pkg.version, '0.9.2', 'native reactive-input packaging release version');
+assert.equal(pkg.version, '0.9.3', 'background rendering performance release version');
 assert.equal(pkg.scripts['dist:win'], 'electron-builder --win portable --x64 --publish never');
 assert.deepEqual(pkg.build.win.target, ['portable'], 'Windows build must produce only the portable target');
 assert.equal(pkg.build.portable.artifactName, 'AULA-F75-Max-Studio-Portable-${version}.${ext}');
