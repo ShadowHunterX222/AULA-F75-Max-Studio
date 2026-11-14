@@ -1,4 +1,4 @@
-# AULA F75 Max Studio — Windows Desktop Driver v0.9.1
+# AULA F75 Max Studio — Windows Desktop Driver v0.9.2
 
 An unofficial Windows desktop configurator for the AULA F75 Max. Version 0.9.0 supports both USB-C wired mode (`VID_0C45`, `PID_800A`) and the dedicated 2.4 GHz USB receiver (`VID_05AC`, `PID_024F`). The Electron app uses WebHID and keeps PC-rendered lighting active in the system tray while wired.
 
@@ -9,8 +9,8 @@ This source package builds **one standalone Windows x64 portable EXE**. It does 
 1. Install **Node.js 22 or newer** from <https://nodejs.org/>.
 2. Install **Visual Studio Build Tools** with **Desktop development with C++**, MSVC x64/x86 tools, and a Windows SDK. This is required to compile the native `uiohook-napi` global-key hook.
 3. Extract the ZIP to a normal folder, such as `C:\AULA-F75-Max-Studio`.
-4. Double-click `BUILD-WINDOWS-EXE.bat`. It installs the pinned dependencies, approves the project's native build scripts, runs the offline tests, and builds the portable EXE.
-5. When it finishes, open `release` and run `AULA-F75-Max-Studio-Portable-0.9.1.exe`. Copy just this EXE to another Windows x64 PC; Node.js, the source folder, and an installer are not needed to run the packaged app.
+4. Double-click `BUILD-WINDOWS-EXE.bat`. It installs the pinned dependencies, approves the project's native build scripts, rebuilds `uiohook-napi` for the pinned Electron runtime, runs the offline tests, and builds the portable EXE.
+5. When it finishes, open `release` and run `AULA-F75-Max-Studio-Portable-0.9.2.exe`. Copy just this EXE to another Windows x64 PC; Node.js, the source folder, and an installer are not needed to run the packaged app.
 6. Before launching the new build, quit any older AULA Studio version from its system-tray menu (older versions use the same single-instance ID and local port). Connect using USB-C wired mode, or insert the 2.4 GHz receiver and select 2.4 GHz mode in Studio. For initial receiver pairing, set the keyboard mode to 2.4G and hold Fn + `~` for about 3 seconds until the display shows 2.4G Pairing. Close the official AULA application and its background process before connecting.
 7. Launch **AULA F75 Max Studio** and choose **Auto detect**, **USB-C wired**, or **2.4 GHz** from the connection selector, then click **Connect keyboard**. The renderer validates the wired `FF13:0001` feature-report interface or the receiver `FF60` output-report interface before sending transport-specific packets.
 
@@ -59,7 +59,7 @@ The listener is loaded only after the user starts a hardware effect in the React
 
 **Privacy / device scope:** the global hook receives keyboard events from any keyboard attached to this PC; the current library does not identify which physical keyboard generated an event. Therefore typing on another connected keyboard can also trigger the F75 Max effect. The app filters events to keys present in the 82-position F75 Max layout. Fn is normally consumed by keyboard firmware and does not generate a regular Windows key event; LED98 is a lighting-only placeholder with no keycode.
 
-The desktop build uses `uiohook-napi` (N-API native global input hook). The in-app browser preview uses the same USB HID usage mapping through `KeyboardEvent.code`; it only reacts while its preview window has focus.
+The portable build explicitly includes and unpacks both `uiohook-napi` and `node-gyp-build`. Packaged Studio loads them by absolute path from `resources/app.asar.unpacked/node_modules`, avoiding bare-module resolution through the ASAR virtual filesystem; the build script also rebuilds the native addon for the pinned Electron runtime. The desktop build uses `uiohook-napi` (N-API native global input hook). The in-app browser preview uses the same USB HID usage mapping through `KeyboardEvent.code`; it only reacts while its preview window has focus.
 
 ## Features
 
