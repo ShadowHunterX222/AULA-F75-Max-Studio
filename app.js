@@ -28,6 +28,7 @@ let selectedKeyIndex = null;
 let selectedMacroIndex = null;
 let driver;
 let effectRaf = 0;
+let desktopWindowFocused = true;
 let effectActivity = new Map();
 let hardwareEffectRunning = false;
 let hardwareEffectTask = null;
@@ -188,6 +189,21 @@ function syncDesktopReactiveCapture(){
   const enabled=Boolean(window.aulaDesktop?.isDesktop && hardwareEffectRunning && isReactiveEffect());
   try { window.aulaDesktop?.setReactiveCapture?.(enabled); } catch {}
 }
+function setDesktopWindowFocus(focused){
+  desktopWindowFocused=Boolean(focused);
+  if(!desktopWindowFocused){
+    // Pause only the optional software preview when Studio loses focus.
+    // The hardware loop remains active so the keyboard keeps receiving frames.
+    if(!hardwareEffectRunning && effectRaf){cancelAnimationFrame(effectRaf);effectRaf=0;}
+    return;
+  }
+  if(state.effectLab.preview && !hardwareEffectRunning && !effectRaf){
+    effectRaf=requestAnimationFrame(effectPreviewLoop);
+  }
+}
+function registerDesktopWindowFocus(){
+  window.aulaDesktop?.onWindowFocus?.(setDesktopWindowFocus);
+}
 function registerDesktopReactiveInput(){
   window.aulaDesktop?.onGlobalKeydown?.(hidUsage=>{
     if(hardwareEffectRunning && isReactiveEffect()) recordReactiveActivity(hidUsage);
@@ -295,7 +311,7 @@ function syncEffectTuningUI(){
 }
 function paintEffectPreviewFrame(frame){
   // The system-tray driver does not need to update 82 DOM nodes while hidden.
-  if(document.hidden || lightingKeyNodes.size===0) return;
+  if(!desktopWindowFocused || document.hidden || lightingKeyNodes.size===0) return;
   for(const [lightIndex,button] of lightingKeyNodes){
     const raw=frame[lightIndex];
     if(raw){const color=Array.isArray(raw)?`rgb(${raw[0]}, ${raw[1]}, ${raw[2]})`:raw;button.style.background=color;button.style.borderColor=color;button.style.boxShadow='0 0 12px color-mix(in srgb, '+color+', transparent 58%)';}
@@ -307,7 +323,7 @@ function renderEffectPreviewFrame(now){
   paintEffectPreviewFrame(frame);
 }
 function effectPreviewLoop(now){
-  if(!state.effectLab.preview) return;
+  if(!state.effectLab.preview || !desktopWindowFocused){effectRaf=0;return;}
   renderEffectPreviewFrame(now);
   effectRaf=requestAnimationFrame(effectPreviewLoop);
 }
@@ -345,12 +361,12 @@ async function hardwareEffectLoop() {
     // Painting 82 DOM keys at the USB frame rate can add renderer jitter.
     // Keep the physical stream at its stable cadence and refresh the optional
     // on-screen preview at up to 10 FPS while hardware streaming.
-    if(frameStart-lastPreviewPaint>=100){paintEffectPreviewFrame(frame);lastPreviewPaint=frameStart;}
+    if(frameStart-lastPreviewPaint>=100 && desktopWindowFocused && !document.hidden){paintEffectPreviewFrame(frame);lastPreviewPaint=frameStart;}
     await driver.streamRealtimeFrame(frame,ledIndices);
     frames++;
     if(frames%10===0) {
       const fps=(frames*1000/Math.max(1,performance.now()-windowStart)).toFixed(1);
-      const status=$('effectPreviewStatus');
+      const status=desktopWindowFocused && !document.hidden ? $('effectPreviewStatus') : null;
       if(status) status.textContent=`AULA Real-time Lighting · ${fps} FPS · ${effectDefinition().name}`;
       frames=0;windowStart=performance.now();
     }
@@ -713,6 +729,7 @@ async function init() {
   if(state.effectLab.controlsByEffect[state.effectLab.selected]) activateEffectControls(state.effectLab.selected);
   else { if(state.effectLab.brightnessAuto!==false) state.effectLab.brightnessPercent=recommendedEffectBrightness(); cacheCurrentEffectControls(); }
   syncLightingUI(); syncEffectTuningUI(); syncSettings(); renderKeyboard('keymapKeyboard','keymap'); renderMacros(); renderQmkEffectCards(); renderPaletteGrid(); wireEvents();
+  registerDesktopWindowFocus();
   registerDesktopReactiveInput();
   window.aulaDesktop?.onStopLighting?.(async()=>{try{await stopHardwareEffect(true);}catch(e){log(`Tray stop failed: ${e.message}`,'error');}finally{window.aulaDesktop?.completeStopLighting?.();}});
   setConnected(false);
@@ -722,6 +739,7 @@ async function init() {
   }
   if(window.aulaDesktop?.isDesktop) {
     const info=await window.aulaDesktop.getRuntimeInfo().catch(()=>null);
+    if(info?.windowFocused!==undefined) setDesktopWindowFocus(info.windowFocused);
     log(`Windows desktop driver ready${info?.version?` · v${info.version}`:''}. Closing the window keeps Studio running in the system tray.`,'ok');
   } else log('AULA Studio ready. Select Auto detect, USB-C wired, or 2.4 GHz receiver mode, then connect.');
 }
