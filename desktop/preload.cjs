@@ -29,6 +29,13 @@ contextBridge.exposeInMainWorld('aulaDesktop', Object.freeze({
   getRuntimeInfo() {
     return ipcRenderer.invoke('desktop:runtime-info');
   },
+  onWindowFocus(callback) {
+    const listener = (_event, payload) => {
+      if (typeof callback === 'function') callback(Boolean(payload?.focused));
+    };
+    ipcRenderer.on('desktop:window-focus', listener);
+    return () => ipcRenderer.removeListener('desktop:window-focus', listener);
+  },
   setReactiveCapture(enabled) {
     ipcRenderer.send('desktop:set-reactive-capture', { enabled: Boolean(enabled) });
   },
