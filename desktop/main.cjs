@@ -397,7 +397,8 @@ ipcMain.handle('desktop:runtime-info', () => ({
   isDesktop: true,
   version: app.getVersion(),
   userDataPath: app.getPath('userData'),
-  stableOrigin: localOrigin
+  stableOrigin: localOrigin,
+  windowFocused: Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused())
 }));
 
 const gotLock = app.requestSingleInstanceLock();
