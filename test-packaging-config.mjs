@@ -20,6 +20,7 @@ assert.equal(pkg.allowScripts['electron-winstaller@5.4.0'], true, 'npm must be a
 assert.ok(pkg.build.files.includes('node_modules/uiohook-napi/**/*'), 'portable package must explicitly include the native input dependency');
 assert.ok(pkg.build.files.includes('node_modules/node-gyp-build/**/*'), 'portable package must include uiohook-napi native loader dependency');
 assert.ok(pkg.build.asarUnpack.includes('node_modules/uiohook-napi/**/*'), 'the native input package must be unpacked from ASAR');
+assert.ok(pkg.build.asarUnpack.includes('node_modules/node-gyp-build/**/*'), 'the native module loader must be unpacked beside the hook');
 assert.ok(pkg.build.asarUnpack.includes('**/*.node'), 'native addon binaries must be unpacked from ASAR');
 assert.equal(pkg.scripts['rebuild:native'], 'electron-builder install-app-deps', 'native input must be rebuilt for the pinned Electron runtime');
 
