@@ -41,6 +41,14 @@ jobs:
           cp app.js protocol.js effects.js styles.css keymap.json reactive-key-map.json site/
           touch site/.nojekyll
 
+      - name: Upload standalone browser build
+        uses: actions/upload-artifact@v4
+        with:
+          name: AULA-F75-Max-Studio-Web-Driver
+          path: site
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
         with:
