@@ -401,7 +401,7 @@ async function toggleHardwareEffect() {
   }
   if(!driver.connected) return toast('Connect the F75 Max by USB-C or its paired 2.4 GHz receiver first.','error');
   if(!driver.supportsRealtimeStream) return toast('2.4 GHz mode supports the keyboard’s built-in lighting modes, but not the 120 PC-rendered live-stream effects. Use the Lighting tab to apply one of the 20 native modes, or connect by USB-C for live Studio effects.','error');
-  const reactivePrivacy=isReactiveEffect()?`\n\nReactive input permission: this effect needs a global Windows keyboard listener while the effect is active, even when Studio is minimized or another app is focused. It listens to keyboard events from any keyboard attached to this PC, converts supported key positions to F75 Max LED indices, and does not record or store typed text. Stopping the effect disables the listener.`:'';
+  const reactivePrivacy=isReactiveEffect()?(window.aulaDesktop?.isDesktop?`\n\nReactive input permission: this effect needs a global Windows keyboard listener while the effect is active, even when Studio is minimized or another app is focused. It listens to keyboard events from any keyboard attached to this PC, converts supported key positions to F75 Max LED indices, and does not record or store typed text. Stopping the effect disables the listener.`:`\n\nBrowser reactive input: this effect detects supported key positions only while this AULA Studio tab is focused. It cannot listen to keys typed in other applications or capture keystrokes globally. It does not record or store typed text. Keep this page focused while testing reactive effects.`):'';
   showRisk(`This uses AULA's built-in Real-time Lighting mode. Studio first enters host-control mode once using the captured 04 18 → 04 28 → host clock block → 04 02 setup. Then each animation frame uses the vendor's steady-state 04 20 header, eight 64-byte colour blocks (512 bytes total, packed in visual order), and 04 02 frame commit. It does not use the persistent 04 23 per-key palette write or send 04 18 / 04 F0 on every frame. The packet order is adapted from captures for the 0C45:800A family and uses the supplied F75 Max 82-key layout. Stop the stream to restore native AULA lighting.${reactivePrivacy}`,async()=>{
     await driver.enterRealtimePreview();
     hardwareEffectRunning=true;
@@ -731,6 +731,11 @@ async function init() {
   syncLightingUI(); syncEffectTuningUI(); syncSettings(); renderKeyboard('keymapKeyboard','keymap'); renderMacros(); renderQmkEffectCards(); renderPaletteGrid(); wireEvents();
   registerDesktopWindowFocus();
   registerDesktopReactiveInput();
+  if(!window.aulaDesktop?.isDesktop) document.addEventListener('visibilitychange',()=>{
+    if(document.hidden && hardwareEffectRunning){
+      stopHardwareEffect(true).then(()=>toast('Real-time lighting stopped because this browser tab was hidden. Keep the tab visible while browser effects are running.')).catch(error=>{log(`Could not stop the browser RGB stream cleanly: ${error.message}`,'error');});
+    }
+  });
   window.aulaDesktop?.onStopLighting?.(async()=>{try{await stopHardwareEffect(true);}catch(e){log(`Tray stop failed: ${e.message}`,'error');}finally{window.aulaDesktop?.completeStopLighting?.();}});
   setConnected(false);
   if(!('hid' in navigator)) {
