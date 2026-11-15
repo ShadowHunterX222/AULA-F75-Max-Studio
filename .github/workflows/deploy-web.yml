@@ -1,0 +1,54 @@
+name: Deploy AULA Studio Web Driver
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'app.js'
+      - 'protocol.js'
+      - 'effects.js'
+      - 'styles.css'
+      - 'keymap.json'
+      - 'reactive-key-map.json'
+      - '.github/workflows/deploy-web.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Prepare browser site
+        run: |
+          mkdir -p site
+          cp web/index.html site/index.html
+          cp web/web-mode.js web/web-mode.css site/
+          cp app.js protocol.js effects.js styles.css keymap.json reactive-key-map.json site/
+          touch site/.nojekyll
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload web driver
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy web driver
+        id: deployment
+        uses: actions/deploy-pages@v4
