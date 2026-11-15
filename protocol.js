@@ -207,9 +207,9 @@ export class AulaHID {
         if (error?.name === 'NotFoundError') {
           if (requestedMode === 'wireless') throw new Error('No 2.4 GHz receiver was offered. Insert the AULA receiver, switch the keyboard to 2.4G mode, and press Fn + ~ for 3 seconds to pair if needed.');
           if (requestedMode === 'wired') throw new Error('No wired AULA F75 Max interface was offered. Connect the keyboard by USB-C and switch it to wired mode.');
-          throw new Error('No AULA F75 Max interface was offered. Insert the 2.4 GHz receiver or connect USB-C, then select the matching connection mode.');
+          throw new Error('No AULA F75 Max interface was offered. Insert the 2.4 GHz receiver or connect USB-C, then select the matching connection mode. If the device is connected but missing from the picker, your browser may be blocking its vendor HID interface; try the Windows desktop driver.');
         }
-        throw new Error(`Windows HID permission request failed (${error?.name || 'Error'}): ${error?.message || error}. Check the desktop app HID permission setup and retry.`);
+        throw new Error(`Browser WebHID permission request failed (${error?.name || 'Error'}): ${error?.message || error}. Check browser HID permissions and retry.`);
       }
     }
     if (requestedMode === 'wireless') picks = picks.filter(d => isWireless(d) && getWirelessCollection(d));
@@ -229,12 +229,12 @@ export class AulaHID {
       throw new Error(`No supported AULA configuration endpoint was found. Expected wired FF13:0001 (0C45:800A) or 2.4 GHz FF60 output (05AC:024F). Devices: ${details || 'none'}`);
     }
     const selectedTransport = isWireless(device) ? 'wireless' : 'wired';
-    this.onLog(`Windows exposed ${picks.length} supported AULA HID device(s): ${picks.map(summarizeDevice).join(' || ')}`, 'info');
+    this.onLog(`Host exposed ${picks.length} supported AULA HID device(s): ${picks.map(summarizeDevice).join(' || ')}`, 'info');
 
     try { await device.open(); }
     catch (error) {
       const name = error?.name || 'HIDError';
-      throw new Error(`Windows found the AULA ${selectedTransport === 'wireless' ? '2.4 GHz receiver' : 'wired keyboard'}, but could not open its HID interface (${name}: ${error?.message || 'open failed'}). Close the official AULA configuration program and retry.`);
+      throw new Error(`The host found the AULA ${selectedTransport === 'wireless' ? '2.4 GHz receiver' : 'wired keyboard'}, but could not open its HID interface (${name}: ${error?.message || 'open failed'}). Close the official AULA configuration program and retry.`);
     }
 
     const collections = flatten(device.collections);
