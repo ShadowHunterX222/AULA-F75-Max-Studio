@@ -2,6 +2,19 @@
 
 An unofficial Windows desktop configurator for the AULA F75 Max. Version 0.9.0 supports both USB-C wired mode (`VID_0C45`, `PID_800A`) and the dedicated 2.4 GHz USB receiver (`VID_05AC`, `PID_024F`). The Electron app uses WebHID and keeps PC-rendered lighting active in the system tray while wired.
 
+
+## Browser web driver
+
+The browser version is deployed at <https://shadowhunterx222.github.io/AULA-F75-Max-Studio/>. It uses the same WebHID protocol, layout, profile format and 120 Studio effects as the desktop app, without requiring an EXE or installation.
+
+- Open the site in a current desktop Chromium browser (Google Chrome or Microsoft Edge) over HTTPS, then click **Connect keyboard** and grant access to the AULA device.
+- USB-C and the dedicated 2.4 GHz receiver can connect. The 20 native lighting modes and receiver settings work over 2.4 GHz; 120 real-time Studio effects, per-key RGB, key remapping and macros require USB-C.
+- Browser reactive effects only see supported key events while the AULA Studio tab is focused. Browsers do not expose a global keyboard hook, so typing in other apps will not trigger the effect.
+- Keep the tab visible during real-time RGB streaming. When the tab is hidden, Studio stops the web stream and restores the selected native lighting mode. Closing the tab cannot keep the animation running.
+- Browser WebHID support and device visibility depend on the browser's HID security policy. If the AULA interface does not appear in the browser's chooser, use the Windows desktop driver.
+
+The Windows portable EXE remains the full-featured option for global reactive input and background/system-tray lighting.
+
 ## Recommended: build/install the Windows app
 
 This source package builds **one standalone Windows x64 portable EXE**. It does not create an installer, a setup wizard, or a folder of loose application files. A precompiled EXE is not included in this ZIP; the build script downloads the pinned Electron and electron-builder packages on your PC.

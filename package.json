@@ -6,7 +6,7 @@
   "main": "desktop/main.cjs",
   "type": "module",
   "scripts": {
-    "test": "node test-protocol.mjs && node test-desktop-hid.mjs && node test-reactive-input.mjs && node test-window-performance.mjs && node test-effects-library.mjs && node test-effect-tuning.mjs && node test-light-chase.mjs && node test-wireless-protocol.mjs && node test-packaging-config.mjs",
+    "test": "node test-protocol.mjs && node test-desktop-hid.mjs && node test-reactive-input.mjs && node test-window-performance.mjs && node test-effects-library.mjs && node test-effect-tuning.mjs && node test-light-chase.mjs && node test-wireless-protocol.mjs && node test-packaging-config.mjs && node test-web-driver.mjs",
     "desktop": "electron .",
     "dist:win": "electron-builder --win portable --x64 --publish never",
     "dist:win:portable": "electron-builder --win portable --x64",
